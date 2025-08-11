@@ -114,7 +114,7 @@ export function ExportToCampaignModal({
           source_list_id: listId,
           target_campaign_id: selectedCampaign,
           leads_selected: leadsToImport.length,
-          duplicate_handling,
+          duplicate_handling: duplicateHandling,
           status: 'processing'
         }])
         .select()
