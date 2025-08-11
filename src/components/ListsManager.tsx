@@ -5,29 +5,31 @@ import { supabase } from '../lib/supabase';
 import { LoadingSpinner } from './common/LoadingSpinner';
 import { ErrorMessage } from './common/ErrorMessage';
 import { LeadEditModal } from './LeadEditModal';
-import Papa from 'papaparse';
+import { IntentDiscoveryChat } from './IntentDiscoveryChat';
+import { ExportToCampaignModal } from './ExportToCampaignModal';
 import { 
-  Users, 
-  Upload, 
-  Download, 
-  Search, 
   Plus, 
+  Users, 
+  Search, 
+  Edit2, 
   Trash2, 
-  Edit2,
-  Mail,
-  Phone,
-  Building,
-  Briefcase,
-  Tag,
+  Eye,
+  Download,
+  Upload,
+  Target,
+  MessageSquare,
   Crown,
   Zap,
   CheckCircle,
-  XCircle,
-  Eye,
+  Building,
+  Mail,
+  Phone,
+  Briefcase,
+  ExternalLink,
+  Send,
   Filter,
-  MoreHorizontal,
-  FileText,
-  Target
+  BarChart3,
+  Sparkles
 } from 'lucide-react';
 
 interface List {
@@ -49,49 +51,64 @@ interface Lead {
   source_url: string | null;
   source_platform: string | null;
   custom_fields: Record<string, any>;
+  intent_score: number;
+  source_slug: string | null;
   created_at: string;
 }
 
-interface ColumnMapping {
-  [key: string]: string;
+interface DiscoveredLead {
+  id: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string | null;
+  title: string | null;
+  linkedin_url: string | null;
+  phone: string | null;
+  company: string | null;
+  company_domain: string | null;
+  country: string | null;
+  state: string | null;
+  city: string | null;
+  source_slug: string | null;
+  intent_score: number;
+  tags: string[];
+  reasons: string[];
+  raw: any;
+  created_at: string;
 }
 
 export function ListsManager() {
   const { user } = useAuth();
   const { theme } = useTheme();
-  const [activeTab, setActiveTab] = useState<'lists' | 'leads'>('lists');
   const [lists, setLists] = useState<List[]>([]);
-  const [selectedList, setSelectedList] = useState<List | null>(null);
+  const [selectedList, setSelectedList] = useState<string | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [discoveredLeads, setDiscoveredLeads] = useState<DiscoveredLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
-  const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [showCreateList, setShowCreateList] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showEditLead, setShowEditLead] = useState<Lead | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'lists' | 'discovery' | 'discovered'>('discovery');
   const [newListName, setNewListName] = useState('');
   const [newListDescription, setNewListDescription] = useState('');
-
-  // Upload states
-  const [uploadStep, setUploadStep] = useState<'select' | 'map' | 'preview'>('select');
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvData, setCsvData] = useState<any[]>([]);
-  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
-  const [columnMapping, setColumnMapping] = useState<ColumnMapping>({});
-  const [processedLeads, setProcessedLeads] = useState<any[]>([]);
-  const [uploading, setUploading] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchLists();
+      if (activeTab === 'discovered') {
+        fetchDiscoveredLeads();
+      }
     }
-  }, [user]);
+  }, [user, activeTab]);
 
   useEffect(() => {
     if (selectedList) {
-      fetchLeads(selectedList.id);
-      setActiveTab('leads');
+      fetchListLeads(selectedList);
     }
   }, [selectedList]);
 
@@ -99,7 +116,6 @@ export function ListsManager() {
     if (!user) return;
 
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('lists')
         .select(`
@@ -117,6 +133,10 @@ export function ListsManager() {
       })) || [];
 
       setLists(listsWithCounts);
+      
+      if (listsWithCounts.length > 0 && !selectedList) {
+        setSelectedList(listsWithCounts[0].id);
+      }
     } catch (error) {
       console.error('Error fetching lists:', error);
       setError('Failed to load lists');
@@ -125,11 +145,10 @@ export function ListsManager() {
     }
   };
 
-  const fetchLeads = async (listId: string) => {
+  const fetchListLeads = async (listId: string) => {
     if (!user) return;
 
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('list_leads')
         .select('*')
@@ -140,10 +159,27 @@ export function ListsManager() {
       if (error) throw error;
       setLeads(data || []);
     } catch (error) {
-      console.error('Error fetching leads:', error);
+      console.error('Error fetching list leads:', error);
       setError('Failed to load leads');
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const fetchDiscoveredLeads = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('discovered_leads')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('intent_score', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      setDiscoveredLeads(data || []);
+    } catch (error) {
+      console.error('Error fetching discovered leads:', error);
+      setError('Failed to load discovered leads');
     }
   };
 
@@ -151,6 +187,7 @@ export function ListsManager() {
     e.preventDefault();
     if (!user || !newListName.trim()) return;
 
+    setCreating(true);
     try {
       const { error } = await supabase
         .from('lists')
@@ -170,6 +207,8 @@ export function ListsManager() {
     } catch (error) {
       console.error('Error creating list:', error);
       setError('Failed to create list');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -181,18 +220,64 @@ export function ListsManager() {
         .from('lists')
         .delete()
         .eq('id', listId)
-        .eq('user_id', user.id);
+        .eq('user_id', user?.id);
 
       if (error) throw error;
 
-      if (selectedList?.id === listId) {
+      if (selectedList === listId) {
         setSelectedList(null);
-        setActiveTab('lists');
+        setLeads([]);
       }
       fetchLists();
     } catch (error) {
       console.error('Error deleting list:', error);
       setError('Failed to delete list');
+    }
+  };
+
+  const addDiscoveredLeadToList = async (discoveredLead: DiscoveredLead, listId: string) => {
+    if (!user) return;
+
+    try {
+      // Transform discovered lead to list lead format
+      const listLead = {
+        list_id: listId,
+        user_id: user.id,
+        name: discoveredLead.full_name || `${discoveredLead.first_name || ''} ${discoveredLead.last_name || ''}`.trim(),
+        email: discoveredLead.email,
+        phone: discoveredLead.phone,
+        company_name: discoveredLead.company,
+        job_title: discoveredLead.title,
+        source_url: discoveredLead.linkedin_url,
+        source_platform: discoveredLead.source_slug,
+        intent_score: discoveredLead.intent_score,
+        source_slug: discoveredLead.source_slug,
+        master_lead_id: discoveredLead.id,
+        custom_fields: {
+          company_domain: discoveredLead.company_domain,
+          country: discoveredLead.country,
+          state: discoveredLead.state,
+          city: discoveredLead.city,
+          tags: discoveredLead.tags,
+          reasons: discoveredLead.reasons,
+          raw_data: discoveredLead.raw
+        }
+      };
+
+      const { error } = await supabase
+        .from('list_leads')
+        .insert([listLead]);
+
+      if (error) throw error;
+
+      // Refresh the current list if it's selected
+      if (selectedList === listId) {
+        fetchListLeads(listId);
+      }
+      fetchLists(); // Update counts
+    } catch (error) {
+      console.error('Error adding lead to list:', error);
+      setError('Failed to add lead to list');
     }
   };
 
@@ -212,214 +297,51 @@ export function ListsManager() {
     }
   };
 
-  const deleteSelectedLeads = async () => {
-    if (selectedLeads.length === 0) return;
-    
-    if (!confirm(`Are you sure you want to delete ${selectedLeads.length} selected leads?`)) return;
-
-    try {
-      const { error } = await supabase
-        .from('list_leads')
-        .delete()
-        .in('id', selectedLeads)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      setSelectedLeads([]);
-      if (selectedList) {
-        fetchLeads(selectedList.id);
-      }
-      fetchLists(); // Refresh counts
-    } catch (error) {
-      console.error('Error deleting leads:', error);
-      setError('Failed to delete leads');
-    }
-  };
-
   const exportLeads = () => {
     const leadsToExport = selectedLeads.length > 0 
       ? leads.filter(lead => selectedLeads.includes(lead.id))
       : leads;
 
-    if (leadsToExport.length === 0) return;
-
-    // Get all unique custom field keys
-    const allCustomFields = new Set<string>();
-    leadsToExport.forEach(lead => {
-      if (lead.custom_fields) {
-        Object.keys(lead.custom_fields).forEach(key => allCustomFields.add(key));
-      }
-    });
-
-    const customFieldKeys = Array.from(allCustomFields);
-
-    // Create CSV headers
-    const headers = [
-      'Name', 'Email', 'Phone', 'Company', 'Job Title', 'Source Platform', 'Source URL', 'Created',
-      ...customFieldKeys
-    ];
-
-    // Create CSV rows
-    const rows = leadsToExport.map(lead => [
-      lead.name || '',
-      lead.email || '',
-      lead.phone || '',
-      lead.company_name || '',
-      lead.job_title || '',
-      lead.source_platform || '',
-      lead.source_url || '',
-      new Date(lead.created_at).toLocaleDateString(),
-      ...customFieldKeys.map(key => lead.custom_fields?.[key] || '')
-    ]);
-
-    const csvContent = [headers, ...rows]
-      .map(row => row.map(cell => `"${cell}"`).join(','))
-      .join('\n');
+    const csvContent = [
+      ['Name', 'Email', 'Phone', 'Company', 'Job Title', 'Source', 'Intent Score', 'Created'],
+      ...leadsToExport.map(lead => [
+        lead.name || '',
+        lead.email || '',
+        lead.phone || '',
+        lead.company_name || '',
+        lead.job_title || '',
+        lead.source_platform || '',
+        lead.intent_score?.toString() || '0',
+        new Date(lead.created_at).toLocaleDateString()
+      ])
+    ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${selectedList?.name || 'leads'}_export_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `leads_export_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  // CSV Upload Functions
-  const handleFileUpload = (file: File) => {
-    if (!file.name.endsWith('.csv')) {
-      setError('Please upload a CSV file');
-      return;
-    }
+  const filteredLeads = leads.filter(lead =>
+    !searchTerm || 
+    lead.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    lead.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    lead.job_title?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-    setCsvFile(file);
-    
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        if (results.errors.length > 0) {
-          setError('CSV parsing error: ' + results.errors[0].message);
-          return;
-        }
+  const filteredDiscoveredLeads = discoveredLeads.filter(lead =>
+    !searchTerm ||
+    lead.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    lead.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    lead.title?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-        setCsvData(results.data);
-        setCsvHeaders(results.meta.fields || []);
-        
-        // Auto-detect column mappings
-        const autoMapping: ColumnMapping = {};
-        const headers = results.meta.fields || [];
-        
-        headers.forEach(header => {
-          const lowerHeader = header.toLowerCase().trim();
-          if (lowerHeader.includes('name') || lowerHeader.includes('first') || lowerHeader.includes('full')) {
-            autoMapping[header] = 'name';
-          } else if (lowerHeader.includes('phone') || lowerHeader.includes('mobile') || lowerHeader.includes('cell')) {
-            autoMapping[header] = 'phone';
-          } else if (lowerHeader.includes('email') || lowerHeader.includes('mail')) {
-            autoMapping[header] = 'email';
-          } else if (lowerHeader.includes('company') || lowerHeader.includes('organization')) {
-            autoMapping[header] = 'company_name';
-          } else if (lowerHeader.includes('title') || lowerHeader.includes('position') || lowerHeader.includes('job')) {
-            autoMapping[header] = 'job_title';
-          }
-        });
-        
-        setColumnMapping(autoMapping);
-        setUploadStep('map');
-      }
-    });
-  };
-
-  const processLeads = () => {
-    const processedData: any[] = [];
-    
-    csvData.forEach((row) => {
-      const lead: any = {
-        custom_fields: {}
-      };
-      
-      // Map standard fields
-      Object.entries(columnMapping).forEach(([csvColumn, dbField]) => {
-        if (dbField && row[csvColumn] !== undefined && row[csvColumn] !== null) {
-          const value = String(row[csvColumn]).trim();
-          if (value !== '' && value !== 'EMPTY' && value !== 'NULL') {
-            if (['name', 'email', 'phone', 'company_name', 'job_title'].includes(dbField)) {
-              lead[dbField] = value;
-            }
-          }
-        }
-      });
-
-      // Map unmapped columns as custom fields
-      csvHeaders.forEach(header => {
-        if (!columnMapping[header] && row[header] !== undefined && row[header] !== null) {
-          const value = String(row[header]).trim();
-          if (value !== '' && value !== 'EMPTY' && value !== 'NULL') {
-            lead.custom_fields[header] = value;
-          }
-        }
-      });
-      
-      // Only include leads with at least a name
-      if (lead.name && lead.name.trim() !== '') {
-        processedData.push(lead);
-      }
-    });
-
-    setProcessedLeads(processedData);
-    setUploadStep('preview');
-  };
-
-  const uploadLeads = async () => {
-    if (!user || !selectedList || processedLeads.length === 0) return;
-
-    setUploading(true);
-    try {
-      const leadsToUpload = processedLeads.map(lead => ({
-        ...lead,
-        list_id: selectedList.id,
-        user_id: user.id
-      }));
-
-      const { error } = await supabase
-        .from('list_leads')
-        .insert(leadsToUpload);
-
-      if (error) throw error;
-
-      setShowUploadModal(false);
-      setUploadStep('select');
-      setCsvFile(null);
-      setCsvData([]);
-      setProcessedLeads([]);
-      fetchLeads(selectedList.id);
-      fetchLists(); // Refresh counts
-    } catch (error) {
-      console.error('Upload error:', error);
-      setError('Failed to upload leads');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const filteredLeads = leads.filter(lead => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      lead.name?.toLowerCase().includes(search) ||
-      lead.email?.toLowerCase().includes(search) ||
-      lead.phone?.includes(search) ||
-      lead.company_name?.toLowerCase().includes(search) ||
-      lead.job_title?.toLowerCase().includes(search) ||
-      Object.values(lead.custom_fields || {}).some(value => 
-        String(value).toLowerCase().includes(search)
-      )
-    );
-  });
-
-  if (loading && lists.length === 0) {
+  if (loading) {
     return <LoadingSpinner size="lg" message="Loading lists..." className="h-64" />;
   }
 
@@ -436,11 +358,11 @@ export function ListsManager() {
           <h1 className={`text-3xl font-bold ${
             theme === 'gold' ? 'gold-text-gradient' : 'text-gray-900'
           }`}>
-            Lists Manager
+            Lead Discovery & Lists
           </h1>
         </div>
         <p className={theme === 'gold' ? 'text-gray-400' : 'text-gray-600'}>
-          Organize your leads into targeted lists for better campaign management
+          Discover high-intent leads and organize them into targeted lists
         </p>
       </div>
 
@@ -452,58 +374,224 @@ export function ListsManager() {
         />
       )}
 
-      {/* Main Content */}
-      <div className={`rounded-xl border ${
+      {/* Tabs */}
+      <div className={`rounded-xl shadow-sm border ${
         theme === 'gold' 
           ? 'black-card gold-border' 
           : 'bg-white border-gray-200'
       }`}>
-        {/* Tabs */}
         <div className={`border-b ${
           theme === 'gold' ? 'border-yellow-400/20' : 'border-gray-200'
         }`}>
-          <nav className="flex px-4 sm:px-6">
-            <button
-              onClick={() => {
-                setActiveTab('lists');
-                setSelectedList(null);
-                setSelectedLeads([]);
-              }}
-              className={`py-4 px-4 border-b-2 font-medium text-sm whitespace-nowrap flex items-center space-x-2 ${
-                activeTab === 'lists'
-                  ? theme === 'gold'
-                    ? 'border-yellow-400 text-yellow-400'
-                    : 'border-blue-500 text-blue-600'
-                  : theme === 'gold'
-                    ? 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <Target className="h-4 w-4" />
-              <span>Your Lists ({lists.length})</span>
-            </button>
-            
-            {selectedList && (
-              <button
-                onClick={() => setActiveTab('leads')}
-                className={`py-4 px-4 border-b-2 font-medium text-sm whitespace-nowrap flex items-center space-x-2 ${
-                  activeTab === 'leads'
-                    ? theme === 'gold'
-                      ? 'border-yellow-400 text-yellow-400'
-                      : 'border-blue-500 text-blue-600'
-                    : theme === 'gold'
-                      ? 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Users className="h-4 w-4" />
-                <span>{selectedList.name} ({leads.length})</span>
-              </button>
-            )}
+          <nav className="flex overflow-x-auto px-4 sm:px-6">
+            {[
+              { key: 'discovery', label: 'Intent Discovery', icon: Sparkles },
+              { key: 'discovered', label: 'Discovered Leads', icon: Target },
+              { key: 'lists', label: 'My Lists', icon: Users }
+            ].map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key as any)}
+                  className={`py-4 px-4 border-b-2 font-medium text-sm whitespace-nowrap flex items-center space-x-2 ${
+                    activeTab === tab.key
+                      ? theme === 'gold'
+                        ? 'border-yellow-400 text-yellow-400'
+                        : 'border-blue-500 text-blue-600'
+                      : theme === 'gold'
+                        ? 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
           </nav>
         </div>
 
         <div className="p-4 sm:p-6">
+          {/* Intent Discovery Tab */}
+          {activeTab === 'discovery' && (
+            <IntentDiscoveryChat onLeadsFound={fetchDiscoveredLeads} />
+          )}
+
+          {/* Discovered Leads Tab */}
+          {activeTab === 'discovered' && (
+            <div className="space-y-6">
+              {/* Search */}
+              <div className="flex items-center space-x-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${
+                      theme === 'gold' ? 'text-yellow-400' : 'text-gray-400'
+                    }`} />
+                    <input
+                      type="text"
+                      placeholder="Search discovered leads..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                        theme === 'gold'
+                          ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                          : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                      } focus:border-transparent`}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Discovered Leads Grid */}
+              {filteredDiscoveredLeads.length === 0 ? (
+                <div className="text-center py-12">
+                  <Target className={`h-12 w-12 mx-auto mb-4 ${
+                    theme === 'gold' ? 'text-gray-600' : 'text-gray-400'
+                  }`} />
+                  <h3 className={`text-lg font-medium mb-2 ${
+                    theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
+                  }`}>
+                    No discovered leads yet
+                  </h3>
+                  <p className={theme === 'gold' ? 'text-gray-400' : 'text-gray-600'}>
+                    Use the Intent Discovery tab to find high-intent leads
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredDiscoveredLeads.map((lead) => (
+                    <div
+                      key={lead.id}
+                      className={`p-4 rounded-lg border transition-all hover:shadow-md ${
+                        theme === 'gold'
+                          ? 'border-yellow-400/20 bg-black/10 hover:bg-yellow-400/5'
+                          : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+                      }`}
+                    >
+                      {/* Intent Score Badge */}
+                      <div className="flex items-center justify-between mb-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          lead.intent_score >= 0.8
+                            ? theme === 'gold' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-800'
+                            : lead.intent_score >= 0.6
+                            ? theme === 'gold' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-800'
+                            : theme === 'gold' ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {Math.round(lead.intent_score * 100)}% Intent
+                        </span>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          theme === 'gold' ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
+                        }`}>
+                          {lead.source_slug}
+                        </span>
+                      </div>
+
+                      {/* Lead Info */}
+                      <div className="space-y-2">
+                        <h4 className={`font-semibold ${
+                          theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
+                        }`}>
+                          {lead.full_name || `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unknown'}
+                        </h4>
+                        
+                        {lead.title && (
+                          <div className={`flex items-center text-sm ${
+                            theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                          }`}>
+                            <Briefcase className="h-3 w-3 mr-2" />
+                            {lead.title}
+                          </div>
+                        )}
+                        
+                        {lead.company && (
+                          <div className={`flex items-center text-sm ${
+                            theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                          }`}>
+                            <Building className="h-3 w-3 mr-2" />
+                            {lead.company}
+                          </div>
+                        )}
+                        
+                        {lead.email && (
+                          <div className={`flex items-center text-sm ${
+                            theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                          }`}>
+                            <Mail className="h-3 w-3 mr-2" />
+                            {lead.email}
+                          </div>
+                        )}
+                        
+                        {lead.linkedin_url && (
+                          <a
+                            href={lead.linkedin_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`flex items-center text-sm hover:underline ${
+                              theme === 'gold' ? 'text-yellow-400' : 'text-blue-600'
+                            }`}
+                          >
+                            <ExternalLink className="h-3 w-3 mr-2" />
+                            LinkedIn Profile
+                          </a>
+                        )}
+                      </div>
+
+                      {/* Intent Reasons */}
+                      {lead.reasons && lead.reasons.length > 0 && (
+                        <div className="mt-3">
+                          <div className={`text-xs font-medium mb-1 ${
+                            theme === 'gold' ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
+                            Why this lead:
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {lead.reasons.slice(0, 2).map((reason, index) => (
+                              <span
+                                key={index}
+                                className={`text-xs px-2 py-1 rounded-full ${
+                                  theme === 'gold'
+                                    ? 'bg-blue-500/20 text-blue-400'
+                                    : 'bg-blue-100 text-blue-700'
+                                }`}
+                              >
+                                {reason}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Add to List Dropdown */}
+                      <div className="mt-4">
+                        <select
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              addDiscoveredLeadToList(lead, e.target.value);
+                              e.target.value = '';
+                            }
+                          }}
+                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 ${
+                            theme === 'gold'
+                              ? 'border-yellow-400/30 bg-black/50 text-gray-200 focus:ring-yellow-400'
+                              : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                          }`}
+                        >
+                          <option value="">Add to list...</option>
+                          {lists.map((list) => (
+                            <option key={list.id} value={list.id}>
+                              {list.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Lists Tab */}
           {activeTab === 'lists' && (
             <div className="space-y-6">
@@ -513,7 +601,7 @@ export function ListsManager() {
                   <h3 className={`text-lg font-semibold ${
                     theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
                   }`}>
-                    Your Lists
+                    Your Lists ({lists.length})
                   </h3>
                   <p className={`text-sm ${
                     theme === 'gold' ? 'text-gray-400' : 'text-gray-600'
@@ -521,7 +609,6 @@ export function ListsManager() {
                     Organize leads into targeted lists for campaigns
                   </p>
                 </div>
-                
                 <button
                   onClick={() => setShowCreateList(true)}
                   className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -535,409 +622,271 @@ export function ListsManager() {
                 </button>
               </div>
 
-              {/* Lists Grid */}
-              {lists.length === 0 ? (
-                <div className="text-center py-12">
-                  <Target className={`h-12 w-12 mx-auto mb-4 ${
-                    theme === 'gold' ? 'text-gray-600' : 'text-gray-400'
-                  }`} />
-                  <h3 className={`text-lg font-medium mb-2 ${
-                    theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
-                  }`}>
-                    No lists yet
-                  </h3>
-                  <p className={`mb-6 ${
-                    theme === 'gold' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                    Create your first list to organize leads
-                  </p>
-                  <button
-                    onClick={() => setShowCreateList(true)}
-                    className={`inline-flex items-center px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Lists Sidebar */}
+                <div className="space-y-4">
+                  {lists.length === 0 ? (
+                    <div className={`text-center py-8 border-2 border-dashed rounded-lg ${
                       theme === 'gold'
-                        ? 'gold-gradient text-black hover-gold'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create First List
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {lists.map((list) => (
-                    <div
-                      key={list.id}
-                      className={`p-4 rounded-lg border transition-all hover:shadow-md cursor-pointer ${
-                        theme === 'gold'
-                          ? 'border-yellow-400/20 bg-black/10 hover:bg-yellow-400/5'
-                          : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
-                      }`}
-                      onClick={() => setSelectedList(list)}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            theme === 'gold' ? 'gold-gradient' : 'bg-blue-100'
+                        ? 'border-yellow-400/30 text-gray-400'
+                        : 'border-gray-300 text-gray-500'
+                    }`}>
+                      <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No lists yet</p>
+                      <button
+                        onClick={() => setShowCreateList(true)}
+                        className={`mt-2 text-sm ${
+                          theme === 'gold' ? 'text-yellow-400' : 'text-blue-600'
+                        } hover:underline`}
+                      >
+                        Create your first list
+                      </button>
+                    </div>
+                  ) : (
+                    lists.map((list) => (
+                      <div
+                        key={list.id}
+                        onClick={() => setSelectedList(list.id)}
+                        className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                          selectedList === list.id
+                            ? theme === 'gold'
+                              ? 'border-yellow-400 bg-yellow-400/10'
+                              : 'border-blue-500 bg-blue-50'
+                            : theme === 'gold'
+                              ? 'border-yellow-400/20 bg-black/10 hover:bg-yellow-400/5'
+                              : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className={`font-semibold ${
+                            theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
                           }`}>
-                            <Target className={`h-5 w-5 ${
-                              theme === 'gold' ? 'text-black' : 'text-blue-600'
+                            {list.name}
+                          </h4>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteList(list.id);
+                            }}
+                            className={`p-1 rounded transition-colors ${
+                              theme === 'gold'
+                                ? 'text-red-400 hover:bg-red-400/10'
+                                : 'text-red-600 hover:bg-red-50'
+                            }`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <p className={`text-sm ${
+                          theme === 'gold' ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                          {list.description || 'No description'}
+                        </p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className={`text-xs ${
+                            theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
+                          }`}>
+                            {list.lead_count || 0} leads
+                          </span>
+                          <span className={`text-xs ${
+                            theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
+                          }`}>
+                            {new Date(list.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Leads Content */}
+                <div className="lg:col-span-2 space-y-4">
+                  {selectedList ? (
+                    <>
+                      {/* List Actions */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="relative">
+                            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${
+                              theme === 'gold' ? 'text-yellow-400' : 'text-gray-400'
                             }`} />
-                          </div>
-                          <div>
-                            <h4 className={`font-semibold ${
-                              theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
-                            }`}>
-                              {list.name}
-                            </h4>
-                            <p className={`text-sm ${
-                              theme === 'gold' ? 'text-gray-400' : 'text-gray-600'
-                            }`}>
-                              {list.lead_count || 0} leads
-                            </p>
+                            <input
+                              type="text"
+                              placeholder="Search leads..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className={`pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                                theme === 'gold'
+                                  ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                                  : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                              } focus:border-transparent`}
+                            />
                           </div>
                         </div>
-                        
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteList(list.id);
-                          }}
-                          className={`p-1 rounded transition-colors ${
-                            theme === 'gold'
-                              ? 'text-red-400 hover:bg-red-400/10'
-                              : 'text-red-600 hover:bg-red-50'
-                          }`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+
+                        <div className="flex items-center space-x-2">
+                          {selectedLeads.length > 0 && (
+                            <>
+                              <button
+                                onClick={() => setShowExportModal(true)}
+                                className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                                  theme === 'gold'
+                                    ? 'gold-gradient text-black hover-gold'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                }`}
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                Send to Campaign ({selectedLeads.length})
+                              </button>
+                              <button
+                                onClick={exportLeads}
+                                className={`inline-flex items-center px-3 py-2 text-sm rounded-lg border transition-colors ${
+                                  theme === 'gold'
+                                    ? 'border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10'
+                                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                                }`}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Export
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      
-                      {list.description && (
-                        <p className={`text-sm ${
-                          theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
-                        }`}>
-                          {list.description}
-                        </p>
-                      )}
-                      
-                      <div className={`mt-3 text-xs ${
-                        theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
-                      }`}>
-                        Created {new Date(list.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
-          {/* Leads Tab */}
-          {activeTab === 'leads' && selectedList && (
-            <div className="space-y-6">
-              {/* Leads Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h3 className={`text-lg font-semibold ${
-                    theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
-                  }`}>
-                    {selectedList.name}
-                  </h3>
-                  <p className={`text-sm ${
-                    theme === 'gold' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                    {selectedList.description || 'No description'}
-                  </p>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  {selectedLeads.length > 0 && (
-                    <>
-                      <button
-                        onClick={() => setEditingLead(leads.find(l => l.id === selectedLeads[0]) || null)}
-                        disabled={selectedLeads.length !== 1}
-                        className={`inline-flex items-center px-3 py-2 text-sm rounded-lg transition-colors ${
-                          selectedLeads.length === 1
-                            ? theme === 'gold'
-                              ? 'border border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10'
-                              : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                            : 'opacity-50 cursor-not-allowed border border-gray-300 text-gray-400'
-                        }`}
-                        title={selectedLeads.length === 1 ? 'Edit selected lead' : 'Select exactly one lead to edit'}
-                      >
-                        <Edit2 className="h-4 w-4 mr-1" />
-                        Edit
-                      </button>
-                      
-                      <button
-                        onClick={deleteSelectedLeads}
-                        className="inline-flex items-center px-3 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete ({selectedLeads.length})
-                      </button>
-                    </>
-                  )}
-                  
-                  <button
-                    onClick={() => setShowUploadModal(true)}
-                    className={`inline-flex items-center px-3 py-2 text-sm rounded-lg border transition-colors ${
-                      theme === 'gold'
-                        ? 'border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10'
-                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Upload className="h-4 w-4 mr-1" />
-                    Upload
-                  </button>
-                  
-                  <button
-                    onClick={exportLeads}
-                    className={`inline-flex items-center px-3 py-2 text-sm rounded-lg border transition-colors ${
-                      theme === 'gold'
-                        ? 'border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10'
-                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Download className="h-4 w-4 mr-1" />
-                    Export
-                  </button>
-                </div>
-              </div>
-
-              {/* Search */}
-              <div className="relative max-w-md">
-                <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${
-                  theme === 'gold' ? 'text-yellow-400' : 'text-gray-400'
-                }`} />
-                <input
-                  type="text"
-                  placeholder="Search leads..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                    theme === 'gold'
-                      ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
-                      : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
-                  } focus:border-transparent`}
-                />
-              </div>
-
-              {/* Leads Table */}
-              {filteredLeads.length === 0 ? (
-                <div className="text-center py-12">
-                  <Users className={`h-12 w-12 mx-auto mb-4 ${
-                    theme === 'gold' ? 'text-gray-600' : 'text-gray-400'
-                  }`} />
-                  <h3 className={`text-lg font-medium mb-2 ${
-                    theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
-                  }`}>
-                    {searchTerm ? 'No leads match your search' : 'No leads in this list'}
-                  </h3>
-                  <p className={`mb-6 ${
-                    theme === 'gold' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                    {searchTerm ? 'Try adjusting your search terms' : 'Upload leads to get started'}
-                  </p>
-                  {!searchTerm && (
-                    <button
-                      onClick={() => setShowUploadModal(true)}
-                      className={`inline-flex items-center px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
-                        theme === 'gold'
-                          ? 'gold-gradient text-black hover-gold'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Leads
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead className={`${
-                      theme === 'gold' ? 'bg-black/20' : 'bg-gray-50'
-                    }`}>
-                      <tr>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
-                        }`}>
-                          <input
-                            type="checkbox"
-                            checked={selectedLeads.length === filteredLeads.length && filteredLeads.length > 0}
-                            onChange={handleSelectAll}
-                            className="rounded"
-                          />
-                        </th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
-                        }`}>
-                          Lead
-                        </th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
-                        }`}>
-                          Email
-                        </th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
-                        }`}>
-                          Phone
-                        </th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
-                        }`}>
-                          Company
-                        </th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
-                        }`}>
-                          Job Title
-                        </th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
-                        }`}>
-                          Custom Fields
-                        </th>
-                        <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                          theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
-                        }`}>
-                          Added
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className={`divide-y ${
-                      theme === 'gold' ? 'divide-yellow-400/20' : 'divide-gray-200'
-                    }`}>
-                      {filteredLeads.map((lead) => (
-                        <tr key={lead.id} className={`hover:${
-                          theme === 'gold' ? 'bg-yellow-400/5' : 'bg-gray-50'
-                        } transition-colors`}>
-                          <td className="px-4 py-4 whitespace-nowrap">
+                      {/* Leads Table */}
+                      {filteredLeads.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Users className={`h-12 w-12 mx-auto mb-4 ${
+                            theme === 'gold' ? 'text-gray-600' : 'text-gray-400'
+                          }`} />
+                          <h3 className={`text-lg font-medium mb-2 ${
+                            theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
+                          }`}>
+                            No leads in this list
+                          </h3>
+                          <p className={theme === 'gold' ? 'text-gray-400' : 'text-gray-600'}>
+                            Add leads from the Discovered Leads tab
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {/* Select All */}
+                          <div className="flex items-center space-x-2">
                             <input
                               type="checkbox"
-                              checked={selectedLeads.includes(lead.id)}
-                              onChange={() => handleSelectLead(lead.id)}
+                              checked={selectedLeads.length === filteredLeads.length && filteredLeads.length > 0}
+                              onChange={handleSelectAll}
                               className="rounded"
                             />
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                theme === 'gold' ? 'bg-blue-500/20' : 'bg-blue-100'
-                              }`}>
-                                <Users className={`h-4 w-4 ${
-                                  theme === 'gold' ? 'text-blue-400' : 'text-blue-600'
-                                }`} />
-                              </div>
-                              <div className="ml-3">
-                                <div className={`text-sm font-medium ${
-                                  theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
-                                }`}>
-                                  {lead.name}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            {lead.email ? (
-                              <div className={`flex items-center text-sm ${
-                                theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
-                              }`}>
-                                <Mail className="h-3 w-3 mr-2" />
-                                <span className="truncate max-w-32">{lead.email}</span>
-                              </div>
-                            ) : (
-                              <span className={`text-sm ${
-                                theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
-                              }`}>
-                                No email
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            {lead.phone ? (
-                              <div className={`flex items-center text-sm ${
-                                theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
-                              }`}>
-                                <Phone className="h-3 w-3 mr-2" />
-                                {lead.phone}
-                              </div>
-                            ) : (
-                              <span className={`text-sm ${
-                                theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
-                              }`}>
-                                No phone
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            {lead.company_name ? (
-                              <div className={`flex items-center text-sm ${
-                                theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
-                              }`}>
-                                <Building className="h-3 w-3 mr-2" />
-                                <span className="truncate max-w-24">{lead.company_name}</span>
-                              </div>
-                            ) : (
-                              <span className={`text-sm ${
-                                theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
-                              }`}>
-                                No company
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            {lead.job_title ? (
-                              <div className={`flex items-center text-sm ${
-                                theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
-                              }`}>
-                                <Briefcase className="h-3 w-3 mr-2" />
-                                <span className="truncate max-w-24">{lead.job_title}</span>
-                              </div>
-                            ) : (
-                              <span className={`text-sm ${
-                                theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
-                              }`}>
-                                No title
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            {lead.custom_fields && Object.keys(lead.custom_fields).length > 0 ? (
-                              <div className={`flex items-center text-sm ${
-                                theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
-                              }`}>
-                                <Tag className="h-3 w-3 mr-2" />
-                                <span className={`text-sm ${
-                                  theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
-                                }`}>
-                                  {Object.keys(lead.custom_fields).length} field{Object.keys(lead.custom_fields).length !== 1 ? 's' : ''}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className={`text-sm ${
-                                theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
-                              }`}>
-                                No custom fields
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div className={`text-sm ${
-                              theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
+                            <span className={`text-sm ${
+                              theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
                             }`}>
-                              {new Date(lead.created_at).toLocaleDateString()}
+                              Select all ({filteredLeads.length})
+                            </span>
+                          </div>
+
+                          {/* Leads List */}
+                          {filteredLeads.map((lead) => (
+                            <div
+                              key={lead.id}
+                              className={`p-4 rounded-lg border transition-colors ${
+                                selectedLeads.includes(lead.id)
+                                  ? theme === 'gold'
+                                    ? 'border-yellow-400 bg-yellow-400/10'
+                                    : 'border-blue-500 bg-blue-50'
+                                  : theme === 'gold'
+                                    ? 'border-yellow-400/20 bg-black/10 hover:bg-yellow-400/5'
+                                    : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+                              }`}
+                            >
+                              <div className="flex items-start space-x-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedLeads.includes(lead.id)}
+                                  onChange={() => handleSelectLead(lead.id)}
+                                  className="mt-1 rounded"
+                                />
+                                
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h4 className={`font-semibold ${
+                                      theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
+                                    }`}>
+                                      {lead.name}
+                                    </h4>
+                                    {lead.intent_score > 0 && (
+                                      <span className={`text-xs px-2 py-1 rounded-full ${
+                                        lead.intent_score >= 0.8
+                                          ? theme === 'gold' ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-800'
+                                          : theme === 'gold' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-800'
+                                      }`}>
+                                        {Math.round(lead.intent_score * 100)}% Intent
+                                      </span>
+                                    )}
+                                  </div>
+                                  
+                                  <div className="space-y-1">
+                                    {lead.email && (
+                                      <div className={`flex items-center text-sm ${
+                                        theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                                      }`}>
+                                        <Mail className="h-3 w-3 mr-2" />
+                                        {lead.email}
+                                      </div>
+                                    )}
+                                    {lead.phone && (
+                                      <div className={`flex items-center text-sm ${
+                                        theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                                      }`}>
+                                        <Phone className="h-3 w-3 mr-2" />
+                                        {lead.phone}
+                                      </div>
+                                    )}
+                                    {lead.company_name && (
+                                      <div className={`flex items-center text-sm ${
+                                        theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                                      }`}>
+                                        <Building className="h-3 w-3 mr-2" />
+                                        {lead.company_name}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <button
+                                  onClick={() => setShowEditLead(lead)}
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    theme === 'gold'
+                                      ? 'text-yellow-400 hover:bg-yellow-400/10'
+                                      : 'text-blue-600 hover:bg-blue-100'
+                                  }`}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                              </div>
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-12">
+                      <Users className={`h-12 w-12 mx-auto mb-4 ${
+                        theme === 'gold' ? 'text-gray-600' : 'text-gray-400'
+                      }`} />
+                      <h3 className={`text-lg font-medium mb-2 ${
+                        theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
+                      }`}>
+                        Select a list to view leads
+                      </h3>
+                      <p className={theme === 'gold' ? 'text-gray-400' : 'text-gray-600'}>
+                        Choose a list from the sidebar to manage its leads
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>
@@ -961,7 +910,7 @@ export function ListsManager() {
                   Create New List
                 </h3>
               </div>
-              
+
               <form onSubmit={createList} className="p-6 space-y-4">
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${
@@ -978,11 +927,11 @@ export function ListsManager() {
                         ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
                         : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
                     }`}
-                    placeholder="e.g., SaaS Founders"
+                    placeholder="e.g., SaaS Founders Q4"
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${
                     theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
@@ -1016,13 +965,14 @@ export function ListsManager() {
                   </button>
                   <button
                     type="submit"
+                    disabled={creating}
                     className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                       theme === 'gold'
                         ? 'gold-gradient text-black hover-gold'
                         : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
+                    } disabled:opacity-50`}
                   >
-                    Create List
+                    {creating ? 'Creating...' : 'Create List'}
                   </button>
                 </div>
               </form>
@@ -1031,323 +981,28 @@ export function ListsManager() {
         </div>
       )}
 
-      {/* Upload Modal */}
-      {showUploadModal && selectedList && (
-        <div className={`fixed inset-0 z-50 overflow-y-auto ${
-          theme === 'gold' ? 'bg-black/75' : 'bg-gray-900/50'
-        }`}>
-          <div className="flex items-center justify-center min-h-screen p-4">
-            <div className={`w-full max-w-4xl rounded-xl shadow-2xl ${
-              theme === 'gold' ? 'black-card gold-border' : 'bg-white border border-gray-200'
-            }`}>
-              <div className={`p-6 border-b ${
-                theme === 'gold' ? 'border-yellow-400/20' : 'border-gray-200'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <h3 className={`text-lg font-semibold ${
-                    theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
-                  }`}>
-                    Upload Leads to {selectedList.name}
-                  </h3>
-                  <button
-                    onClick={() => {
-                      setShowUploadModal(false);
-                      setUploadStep('select');
-                      setCsvFile(null);
-                    }}
-                    className={`p-2 rounded-lg transition-colors ${
-                      theme === 'gold'
-                        ? 'text-gray-400 hover:bg-gray-800'
-                        : 'text-gray-500 hover:bg-gray-100'
-                    }`}
-                  >
-                    <XCircle className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6">
-                {/* Step 1: File Selection */}
-                {uploadStep === 'select' && (
-                  <div className="space-y-6">
-                    <div
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        const files = Array.from(e.dataTransfer.files);
-                        if (files.length > 0) handleFileUpload(files[0]);
-                      }}
-                      onDragOver={(e) => e.preventDefault()}
-                      className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
-                        theme === 'gold'
-                          ? 'border-yellow-400/30 bg-yellow-400/5 hover:bg-yellow-400/10'
-                          : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
-                      }`}
-                    >
-                      <Upload className={`h-12 w-12 mx-auto mb-4 ${
-                        theme === 'gold' ? 'text-yellow-400' : 'text-blue-600'
-                      }`} />
-                      <h3 className={`text-lg font-semibold mb-2 ${
-                        theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
-                      }`}>
-                        Upload CSV File
-                      </h3>
-                      <p className={`text-sm mb-4 ${
-                        theme === 'gold' ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        Drag and drop your CSV file here, or click to browse
-                      </p>
-                      <input
-                        type="file"
-                        accept=".csv"
-                        onChange={(e) => {
-                          const files = e.target.files;
-                          if (files && files.length > 0) handleFileUpload(files[0]);
-                        }}
-                        className="hidden"
-                        id="csv-upload"
-                      />
-                      <label
-                        htmlFor="csv-upload"
-                        className={`inline-flex items-center px-6 py-3 text-sm font-medium rounded-lg cursor-pointer transition-colors ${
-                          theme === 'gold'
-                            ? 'gold-gradient text-black hover-gold'
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                        }`}
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        Choose File
-                      </label>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 2: Column Mapping */}
-                {uploadStep === 'map' && (
-                  <div className="space-y-6">
-                    <div>
-                      <h4 className={`text-lg font-semibold mb-2 ${
-                        theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
-                      }`}>
-                        Map Your CSV Columns
-                      </h4>
-                      <p className={`text-sm ${
-                        theme === 'gold' ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        Match your CSV columns to lead fields. Unmapped columns will be saved as custom fields.
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {[
-                        { field: 'name', label: 'Full Name', icon: Users },
-                        { field: 'email', label: 'Email Address', icon: Mail },
-                        { field: 'phone', label: 'Phone Number', icon: Phone },
-                        { field: 'company_name', label: 'Company Name', icon: Building },
-                        { field: 'job_title', label: 'Job Title', icon: Briefcase }
-                      ].map((fieldConfig) => {
-                        const Icon = fieldConfig.icon;
-                        const mappedColumn = Object.keys(columnMapping).find(
-                          key => columnMapping[key] === fieldConfig.field
-                        );
-                        
-                        return (
-                          <div
-                            key={fieldConfig.field}
-                            className={`p-4 rounded-lg border ${
-                              theme === 'gold'
-                                ? 'border-yellow-400/20 bg-black/10'
-                                : 'border-gray-200 bg-gray-50'
-                            }`}
-                          >
-                            <div className="flex items-center space-x-3 mb-3">
-                              <Icon className={`h-5 w-5 ${
-                                theme === 'gold' ? 'text-yellow-400' : 'text-blue-600'
-                              }`} />
-                              <div className={`font-medium ${
-                                theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
-                              }`}>
-                                {fieldConfig.label}
-                              </div>
-                            </div>
-                            
-                            <select
-                              value={mappedColumn || ''}
-                              onChange={(e) => {
-                                const newMapping = { ...columnMapping };
-                                // Remove existing mapping for this field
-                                Object.keys(newMapping).forEach(key => {
-                                  if (newMapping[key] === fieldConfig.field) {
-                                    delete newMapping[key];
-                                  }
-                                });
-                                // Add new mapping
-                                if (e.target.value) {
-                                  newMapping[e.target.value] = fieldConfig.field;
-                                }
-                                setColumnMapping(newMapping);
-                              }}
-                              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                                theme === 'gold'
-                                  ? 'border-yellow-400/30 bg-black/50 text-gray-200 focus:ring-yellow-400'
-                                  : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
-                              }`}
-                            >
-                              <option value="">Select CSV column...</option>
-                              {csvHeaders.map(header => (
-                                <option key={header} value={header}>
-                                  {header}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="flex justify-between">
-                      <button
-                        onClick={() => setUploadStep('select')}
-                        className={`px-4 py-2 text-sm rounded-lg transition-colors ${
-                          theme === 'gold'
-                            ? 'text-gray-400 bg-gray-800 border border-gray-600 hover:bg-gray-700'
-                            : 'text-gray-700 bg-gray-200 hover:bg-gray-300'
-                        }`}
-                      >
-                        Back
-                      </button>
-                      <button
-                        onClick={processLeads}
-                        className={`px-6 py-2 text-sm font-medium rounded-lg transition-colors ${
-                          theme === 'gold'
-                            ? 'gold-gradient text-black hover-gold'
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                        }`}
-                      >
-                        Process Leads
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 3: Preview & Upload */}
-                {uploadStep === 'preview' && (
-                  <div className="space-y-6">
-                    <div>
-                      <h4 className={`text-lg font-semibold mb-2 ${
-                        theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
-                      }`}>
-                        Preview & Upload
-                      </h4>
-                      <p className={`text-sm ${
-                        theme === 'gold' ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        Review your processed leads before uploading
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4 mb-6">
-                      <div className={`p-4 rounded-lg border ${
-                        theme === 'gold'
-                          ? 'border-yellow-400/20 bg-black/10'
-                          : 'border-gray-200 bg-gray-50'
-                      }`}>
-                        <div className={`text-2xl font-bold ${
-                          theme === 'gold' ? 'text-yellow-400' : 'text-blue-600'
-                        }`}>
-                          {csvData.length}
-                        </div>
-                        <div className={`text-sm ${
-                          theme === 'gold' ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
-                          Total Rows
-                        </div>
-                      </div>
-
-                      <div className={`p-4 rounded-lg border ${
-                        theme === 'gold'
-                          ? 'border-yellow-400/20 bg-black/10'
-                          : 'border-gray-200 bg-gray-50'
-                      }`}>
-                        <div className={`text-2xl font-bold ${
-                          theme === 'gold' ? 'text-yellow-400' : 'text-green-600'
-                        }`}>
-                          {processedLeads.length}
-                        </div>
-                        <div className={`text-sm ${
-                          theme === 'gold' ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
-                          Valid Leads
-                        </div>
-                      </div>
-
-                      <div className={`p-4 rounded-lg border ${
-                        theme === 'gold'
-                          ? 'border-yellow-400/20 bg-black/10'
-                          : 'border-gray-200 bg-gray-50'
-                      }`}>
-                        <div className={`text-2xl font-bold ${
-                          theme === 'gold' ? 'text-yellow-400' : 'text-blue-600'
-                        }`}>
-                          {csvData.length > 0 ? Math.round((processedLeads.length / csvData.length) * 100) : 0}%
-                        </div>
-                        <div className={`text-sm ${
-                          theme === 'gold' ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
-                          Success Rate
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <button
-                        onClick={() => setUploadStep('map')}
-                        className={`px-4 py-2 text-sm rounded-lg transition-colors ${
-                          theme === 'gold'
-                            ? 'text-gray-400 bg-gray-800 border border-gray-600 hover:bg-gray-700'
-                            : 'text-gray-700 bg-gray-200 hover:bg-gray-300'
-                        }`}
-                      >
-                        Back to Mapping
-                      </button>
-                      <button
-                        onClick={uploadLeads}
-                        disabled={uploading || processedLeads.length === 0}
-                        className={`px-6 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 ${
-                          theme === 'gold'
-                            ? 'bg-green-600 text-white hover:bg-green-700'
-                            : 'bg-green-600 text-white hover:bg-green-700'
-                        }`}
-                      >
-                        {uploading ? (
-                          <div className="flex items-center">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Uploading...
-                          </div>
-                        ) : (
-                          <>
-                            <Upload className="h-4 w-4 mr-2" />
-                            Upload {processedLeads.length} Leads
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Lead Edit Modal */}
+      {showEditLead && (
+        <LeadEditModal
+          lead={showEditLead}
+          listId={selectedList!}
+          onClose={() => setShowEditLead(null)}
+          onSave={() => {
+            setShowEditLead(null);
+            if (selectedList) fetchListLeads(selectedList);
+          }}
+        />
       )}
 
-      {/* Lead Edit Modal */}
-      {editingLead && selectedList && (
-        <LeadEditModal
-          lead={editingLead}
-          listId={selectedList.id}
-          onClose={() => setEditingLead(null)}
-          onSave={() => {
-            setEditingLead(null);
-            fetchLeads(selectedList.id);
+      {/* Export to Campaign Modal */}
+      {showExportModal && selectedList && (
+        <ExportToCampaignModal
+          listId={selectedList}
+          selectedLeadIds={selectedLeads}
+          onClose={() => setShowExportModal(false)}
+          onSuccess={() => {
+            setShowExportModal(false);
+            setSelectedLeads([]);
           }}
         />
       )}

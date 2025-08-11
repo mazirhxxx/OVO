@@ -13,7 +13,6 @@ import { InputValidator } from '../utils/validation';
 import { ArrowLeft, Save, Upload, MessageCircle, CheckCircle, XCircle, AlertCircle, Eye, ArrowRight, ArrowDown, Play, Phone, MessageSquare } from 'lucide-react';
 import { AITrainer } from './AITrainer';
 import { CampaignAnalytics } from './CampaignAnalytics';
-import { UploadLeadsTab } from './UploadLeadsTab';
 import { SequenceBuilder } from './SequenceBuilder';
 import { CampaignDetailsForm } from './CampaignDetailsForm';
 import { CampaignLeadsView } from './CampaignLeadsView';
@@ -493,7 +492,6 @@ export default function EditCampaign() {
             {[
               { key: 'analytics', label: 'Campaign Analytics' },
               { key: 'leads', label: 'View Leads' },
-              { key: 'upload', label: 'Upload Leads' },
              { key: 'details', label: 'Campaign Details' },
              { key: 'training', label: 'AI Training' },
              { key: 'sequence', label: 'Sequence Builder' }
@@ -531,13 +529,6 @@ export default function EditCampaign() {
             <CampaignAnalytics campaignId={campaign.id} />
           )}
 
-          {/* Upload Leads Tab */}
-          {activeTab === 'upload' && campaign && (
-            <UploadLeadsTab 
-              campaignId={campaign.id} 
-              setError={setError}
-            />
-          )}
 
           {/* View Leads Tab */}
           {activeTab === 'leads' && campaign && (
