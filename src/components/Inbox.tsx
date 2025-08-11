@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLoadingState } from '../hooks/useLoadingState';
 import { useErrorHandler } from '../hooks/useErrorHandler';
