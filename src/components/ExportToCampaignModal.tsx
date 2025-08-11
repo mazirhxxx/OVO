@@ -135,26 +135,28 @@ export function ExportToCampaignModal({
             campaign_id: selectedCampaign,
             user_id: user.id,
             name: lead.name,
-            phone: lead.phone || '',
+            phone: lead.phone && lead.phone !== '' ? lead.phone : '',
             email: lead.email,
             company_name: lead.company_name,
             job_title: lead.job_title,
             source_url: lead.source_url,
             source_platform: lead.source_platform || 'list_import',
-            status: 'pending',
-            source_list_id: listId,
-            master_lead_id: lead.master_lead_id,
-            import_job_id: jobData.id
+            status: 'pending'
           };
 
           // Check for duplicates if needed
           if (duplicateHandling === 'skip') {
-            const { data: existing } = await supabase
+            const { data: existing, error: duplicateError } = await supabase
               .from('uploaded_leads')
               .select('id')
               .eq('campaign_id', selectedCampaign)
-              .eq('phone', lead.phone)
+              .eq('user_id', user.id)
+              .or(`phone.eq.${lead.phone || 'null'},email.eq.${lead.email || 'null'}`)
               .limit(1);
+
+            if (duplicateError) {
+              console.warn('Error checking duplicates:', duplicateError);
+            }
 
             if (existing && existing.length > 0) {
               skipped++;
@@ -171,7 +173,8 @@ export function ExportToCampaignModal({
             if (duplicateHandling === 'skip' && insertError.code === '23505') {
               skipped++;
             } else {
-              throw insertError;
+              console.error('Insert error for lead:', lead.name, insertError);
+              errors.push(`${lead.name}: ${insertError.message}`);
             }
           } else {
             imported++;
