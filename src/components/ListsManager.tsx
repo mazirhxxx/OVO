@@ -7,6 +7,8 @@ import { ErrorMessage } from './common/ErrorMessage';
 import { LeadEditModal } from './LeadEditModal';
 import { IntentDiscoveryChat } from './IntentDiscoveryChat';
 import { ExportToCampaignModal } from './ExportToCampaignModal';
+import { LeadUploadModal } from './LeadUploadModal';
+import { EnrichmentModal } from './EnrichmentModal';
 import { 
   Plus, 
   Users, 
@@ -92,6 +94,8 @@ export function ListsManager() {
   const [showCreateList, setShowCreateList] = useState(false);
   const [showEditLead, setShowEditLead] = useState<Lead | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showEnrichmentModal, setShowEnrichmentModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'lists' | 'discovery' | 'discovered'>('discovery');
   const [newListName, setNewListName] = useState('');
   const [newListDescription, setNewListDescription] = useState('');
@@ -712,6 +716,47 @@ export function ListsManager() {
                 <div className="lg:col-span-2 space-y-4">
                   {selectedList ? (
                     <>
+                      {/* List Header with Actions */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className={`text-lg font-semibold ${
+                            theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
+                          }`}>
+                            {lists.find(l => l.id === selectedList)?.name || 'Selected List'}
+                          </h4>
+                          <p className={`text-sm ${
+                            theme === 'gold' ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
+                            {leads.length} leads in this list
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => setShowUploadModal(true)}
+                            className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                              theme === 'gold'
+                                ? 'border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10'
+                                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            Upload Leads
+                          </button>
+                          <button
+                            onClick={() => setShowEnrichmentModal(true)}
+                            disabled={leads.length === 0}
+                            className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                              theme === 'gold'
+                                ? 'gold-gradient text-black hover-gold'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            } disabled:opacity-50`}
+                          >
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Enrich List
+                          </button>
+                        </div>
+                      </div>
+
                       {/* List Actions */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
@@ -1012,6 +1057,32 @@ export function ListsManager() {
           onSuccess={() => {
             setShowExportModal(false);
             setSelectedLeads([]);
+          }}
+        />
+      )}
+
+      {/* Lead Upload Modal */}
+      {showUploadModal && selectedList && (
+        <LeadUploadModal
+          listId={selectedList}
+          onClose={() => setShowUploadModal(false)}
+          onSuccess={() => {
+            setShowUploadModal(false);
+            if (selectedList) fetchListLeads(selectedList);
+            fetchLists(); // Update counts
+          }}
+        />
+      )}
+
+      {/* Enrichment Modal */}
+      {showEnrichmentModal && selectedList && (
+        <EnrichmentModal
+          listId={selectedList}
+          leadCount={leads.length}
+          onClose={() => setShowEnrichmentModal(false)}
+          onSuccess={() => {
+            setShowEnrichmentModal(false);
+            if (selectedList) fetchListLeads(selectedList);
           }}
         />
       )}
