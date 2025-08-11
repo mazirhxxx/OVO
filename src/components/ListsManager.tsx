@@ -294,6 +294,47 @@ export function ListsManager() {
     }
   };
 
+  const deleteSelectedLeads = async () => {
+    if (!user || !selectedList || selectedLeads.length === 0) return;
+
+    try {
+      const { error } = await supabase
+        .from('list_leads')
+        .delete()
+        .in('id', selectedLeads)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setSelectedLeads([]);
+      fetchListLeads(selectedList);
+      fetchLists(); // Update counts
+    } catch (error) {
+      console.error('Error deleting selected leads:', error);
+      setError('Failed to delete selected leads');
+    }
+  };
+
+  const deleteSingleLead = async (leadId: string) => {
+    if (!user || !selectedList) return;
+
+    try {
+      const { error } = await supabase
+        .from('list_leads')
+        .delete()
+        .eq('id', leadId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      fetchListLeads(selectedList);
+      fetchLists(); // Update counts
+    } catch (error) {
+      console.error('Error deleting lead:', error);
+      setError('Failed to delete lead');
+    }
+  };
+
   const handleSelectLead = (leadId: string) => {
     setSelectedLeads(prev => 
       prev.includes(leadId) 
@@ -782,6 +823,21 @@ export function ListsManager() {
                           {selectedLeads.length > 0 && (
                             <>
                               <button
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to delete ${selectedLeads.length} selected leads?`)) {
+                                    deleteSelectedLeads();
+                                  }
+                                }}
+                                className={`inline-flex items-center px-3 py-2 text-sm rounded-lg transition-colors ${
+                                  theme === 'gold'
+                                    ? 'bg-red-600 text-white hover:bg-red-700'
+                                    : 'bg-red-600 text-white hover:bg-red-700'
+                                }`}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete ({selectedLeads.length})
+                              </button>
+                              <button
                                 onClick={() => setShowExportModal(true)}
                                 className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                                   theme === 'gold'
@@ -917,6 +973,20 @@ export function ListsManager() {
                                   }`}
                                 >
                                   <Edit2 className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm('Are you sure you want to delete this lead?')) {
+                                      deleteSingleLead(lead.id);
+                                    }
+                                  }}
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    theme === 'gold'
+                                      ? 'text-red-400 hover:bg-red-400/10'
+                                      : 'text-red-600 hover:bg-red-50'
+                                  }`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
                                 </button>
                               </div>
                             </div>
