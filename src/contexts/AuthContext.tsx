@@ -52,10 +52,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase
         .from('memberships')
         .select('role')
-        .eq('user_id', user.id)
-        .single();
+        .eq('user_id', user.id);
 
-      if (!error && data?.role === 'admin') {
+      if (!error && data && data.length > 0 && data[0]?.role === 'admin') {
         setIsAdmin(true);
       } else {
         setIsAdmin(false);
