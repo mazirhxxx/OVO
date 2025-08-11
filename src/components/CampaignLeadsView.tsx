@@ -321,6 +321,42 @@ export function CampaignLeadsView({ campaignId }: CampaignLeadsViewProps) {
                 ? 'No leads match your search criteria'
                 : 'Upload leads to this campaign to get started'}
             </p>
+            {!searchTerm && !selectedStatus && (
+              <div className={`p-4 rounded-lg ${
+                theme === 'gold'
+                  ? 'bg-yellow-400/10 border border-yellow-400/20'
+                  : 'bg-blue-50 border border-blue-200'
+              }`}>
+                <h4 className={`text-sm font-medium mb-2 ${
+                  theme === 'gold' ? 'text-yellow-400' : 'text-blue-700'
+                }`}>
+                  💡 Import Leads from Lists
+                </h4>
+                <div className={`text-sm ${
+                  theme === 'gold' ? 'text-yellow-300' : 'text-blue-600'
+                }`}>
+                  <p>To add leads to this campaign, go to the <strong>Lists</strong> page where you can:</p>
+                  <ul className="mt-2 space-y-1 ml-4">
+                    <li>• Discover high-intent leads using AI</li>
+                    <li>• Organize leads into targeted lists</li>
+                    <li>• Import leads to this campaign with one click</li>
+                  </ul>
+                  <div className="mt-3">
+                    <a
+                      href="/lists"
+                      className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        theme === 'gold'
+                          ? 'gold-gradient text-black hover-gold'
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Go to Lists
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <>
