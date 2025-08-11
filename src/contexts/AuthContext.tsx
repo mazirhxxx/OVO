@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -21,6 +21,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -43,6 +48,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const checkAdminStatus = async (user: User | null) => {
+    if (!isSupabaseConfigured) {
+      setIsAdmin(false);
+      return;
+    }
+
     if (!user) {
       setIsAdmin(false);
       return;
@@ -65,6 +75,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      throw new Error('Database not configured. Please connect to Supabase.');
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -74,6 +88,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
+    if (!isSupabaseConfigured) {
+      throw new Error('Database not configured. Please connect to Supabase.');
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -118,6 +136,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    if (!isSupabaseConfigured) {
+      return;
+    }
+
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
