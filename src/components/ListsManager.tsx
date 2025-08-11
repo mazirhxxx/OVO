@@ -175,10 +175,19 @@ export function ListsManager() {
         .order('intent_score', { ascending: false })
         .limit(100);
 
-      if (error) throw error;
+      if (error) {
+        // Handle missing table gracefully
+        if (error.code === '42P01') {
+          console.warn('Discovered leads table not yet created');
+          setDiscoveredLeads([]);
+          return;
+        }
+        throw error;
+      }
       setDiscoveredLeads(data || []);
     } catch (error) {
       console.error('Error fetching discovered leads:', error);
+      setDiscoveredLeads([]);
       setError('Failed to load discovered leads');
     }
   };

@@ -60,10 +60,19 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
         .order('created_at', { ascending: false })
         .limit(5);
 
-      if (error) throw error;
+      if (error) {
+        // Handle missing table gracefully
+        if (error.code === '42P01') {
+          console.warn('Intent runs table not yet created');
+          setRecentRuns([]);
+          return;
+        }
+        throw error;
+      }
       setRecentRuns(data || []);
     } catch (error) {
       console.error('Error fetching recent runs:', error);
+      setRecentRuns([]);
     }
   };
 
