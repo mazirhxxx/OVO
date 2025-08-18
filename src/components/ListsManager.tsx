@@ -158,7 +158,8 @@ export function ListsManager() {
         .select('*')
         .eq('list_id', listId)
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(10000);
 
       if (error) throw error;
       setLeads(data || []);
@@ -177,7 +178,7 @@ export function ListsManager() {
         .select('*')
         .eq('user_id', user.id)
         .order('intent_score', { ascending: false })
-        .limit(100);
+        .limit(10000);
 
       if (error) {
         // Handle missing table gracefully
