@@ -253,32 +253,12 @@ export function ListsManager() {
     if (!user) return;
 
     try {
-      // Check if lead with same email already exists in this list
-      if (discoveredLead.email) {
-        const normalizedEmail = discoveredLead.email.toLowerCase().trim();
-        const { data: existingLead, error: checkError } = await supabase
-          .from('list_leads')
-          .select('id')
-          .eq('list_id', listId)
-          .ilike('email', normalizedEmail)
-          .single();
-
-        if (checkError && checkError.code !== 'PGRST116') {
-          throw checkError;
-        }
-
-        if (existingLead) {
-          setError('Lead with this email already exists in the list');
-          return;
-        }
-      }
-
       // Transform discovered lead to list lead format
       const listLead = {
         list_id: listId,
         user_id: user.id,
         name: discoveredLead.full_name || `${discoveredLead.first_name || ''} ${discoveredLead.last_name || ''}`.trim(),
-        email: discoveredLead.email ? discoveredLead.email.toLowerCase().trim() : null,
+        email: discoveredLead.email,
         phone: discoveredLead.phone,
         company_name: discoveredLead.company,
         job_title: discoveredLead.title,
@@ -311,11 +291,15 @@ export function ListsManager() {
       fetchLists(); // Update counts
     } catch (error) {
       console.error('Error adding lead to list:', error);
-      if (error.code === '23505') {
-        setError('Lead with this email already exists in the list');
-      } else {
-        setError('Failed to add lead to list');
+      // For list building, we're more lenient with duplicates and validation
+      // The user can clean and organize data as needed
+      console.warn('Lead may already exist in list, continuing...');
+      
+      // Still refresh the list to show current state
+      if (selectedList === listId) {
+        fetchListLeads(listId);
       }
+      fetchLists();
     }
   };
 

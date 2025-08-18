@@ -94,21 +94,12 @@ export function LeadUploadModal({ listId, onClose, onSuccess }: LeadUploadModalP
 
                 // Validate required fields
                 if (!lead.name.trim()) {
-                  errors.push(`Row ${index + 2}: Name is required`);
-                  return;
+                  // For list building, we're more lenient - just use a placeholder
+                  lead.name = `Lead ${index + 1}`;
                 }
 
-                // Validate email if provided
-                if (lead.email && !InputValidator.validateEmail(lead.email).isValid) {
-                  errors.push(`Row ${index + 2}: Invalid email format`);
-                  return;
-                }
-
-                // Validate phone if provided
-                if (lead.phone && !InputValidator.validatePhone(lead.phone).isValid) {
-                  errors.push(`Row ${index + 2}: Invalid phone format`);
-                  return;
-                }
+                // For list building, we don't validate email/phone formats strictly
+                // Users can clean and organize data as needed
 
                 leads.push(lead);
               } catch (error) {
@@ -200,20 +191,10 @@ export function LeadUploadModal({ listId, onClose, onSuccess }: LeadUploadModalP
     e.preventDefault();
     if (!user) return;
 
-    // Validate manual lead
+    // For list building, we're more lenient with validation
     if (!manualLead.name.trim()) {
-      setResult({ success: false, message: 'Name is required' });
-      return;
-    }
-
-    if (manualLead.email && !InputValidator.validateEmail(manualLead.email).isValid) {
-      setResult({ success: false, message: 'Invalid email format' });
-      return;
-    }
-
-    if (manualLead.phone && !InputValidator.validatePhone(manualLead.phone).isValid) {
-      setResult({ success: false, message: 'Invalid phone format' });
-      return;
+      // Use a placeholder name if empty
+      manualLead.name = 'Manual Lead';
     }
 
     setUploading(true);

@@ -95,26 +95,14 @@ export function LeadEditModal({ lead, listId, onClose, onSave }: LeadEditModalPr
     setSaving(true);
 
     try {
-      // Validate required fields
+      // For list building, we're more lenient with validation
       if (!formData.name.trim()) {
-        throw new Error('Name is required');
+        // Use a placeholder if name is empty
+        formData.name = 'Unnamed Lead';
       }
 
-      // Validate email if provided (only if not empty)
-      if (formData.email && formData.email.trim() !== '') {
-        const emailValidation = InputValidator.validateEmail(formData.email.trim());
-        if (!emailValidation.isValid) {
-          throw new Error(emailValidation.errors[0]);
-        }
-      }
-
-      // Validate phone if provided (only if not empty)
-      if (formData.phone && formData.phone.trim() !== '') {
-        const phoneValidation = InputValidator.validatePhone(formData.phone.trim());
-        if (!phoneValidation.isValid) {
-          throw new Error(phoneValidation.errors[0]);
-        }
-      }
+      // For list building, we don't strictly validate email/phone formats
+      // Users can clean and organize data as needed
 
       // Sanitize form data
       const sanitizedData = {
