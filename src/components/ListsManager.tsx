@@ -255,11 +255,12 @@ export function ListsManager() {
     try {
       // Check if lead with same email already exists in this list
       if (discoveredLead.email) {
+        const normalizedEmail = discoveredLead.email.toLowerCase().trim();
         const { data: existingLead, error: checkError } = await supabase
           .from('list_leads')
           .select('id')
           .eq('list_id', listId)
-          .eq('email', discoveredLead.email)
+          .ilike('email', normalizedEmail)
           .single();
 
         if (checkError && checkError.code !== 'PGRST116') {
@@ -277,7 +278,7 @@ export function ListsManager() {
         list_id: listId,
         user_id: user.id,
         name: discoveredLead.full_name || `${discoveredLead.first_name || ''} ${discoveredLead.last_name || ''}`.trim(),
-        email: discoveredLead.email,
+        email: discoveredLead.email ? discoveredLead.email.toLowerCase().trim() : null,
         phone: discoveredLead.phone,
         company_name: discoveredLead.company,
         job_title: discoveredLead.title,
