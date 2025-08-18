@@ -252,6 +252,25 @@ export function ListsManager() {
     if (!user) return;
 
     try {
+      // Check if lead with same email already exists in this list
+      if (discoveredLead.email) {
+        const { data: existingLead, error: checkError } = await supabase
+          .from('list_leads')
+          .select('id')
+          .eq('list_id', listId)
+          .eq('email', discoveredLead.email)
+          .single();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          throw checkError;
+        }
+
+        if (existingLead) {
+          setError('Lead with this email already exists in the list');
+          return;
+        }
+      }
+
       // Transform discovered lead to list lead format
       const listLead = {
         list_id: listId,
