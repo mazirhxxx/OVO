@@ -311,7 +311,11 @@ export function ListsManager() {
       fetchLists(); // Update counts
     } catch (error) {
       console.error('Error adding lead to list:', error);
-      setError('Failed to add lead to list');
+      if (error.code === '23505') {
+        setError('Lead with this email already exists in the list');
+      } else {
+        setError('Failed to add lead to list');
+      }
     }
   };
 
