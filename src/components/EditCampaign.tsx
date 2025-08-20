@@ -223,7 +223,6 @@ export default function EditCampaign() {
               campaign_id: campaignId,
               user_id: user.id,
               step: sequence.step_number,
-              type: 'email',
               next_at: nextAt.toISOString(),
               last_contacted_at: now.toISOString()
             });
