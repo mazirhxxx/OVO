@@ -96,6 +96,7 @@ export function ListsManager() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showEnrichmentModal, setShowEnrichmentModal] = useState(false);
+  const [showCleaningModal, setShowCleaningModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'lists' | 'discovery' | 'discovered'>('discovery');
   const [newListName, setNewListName] = useState('');
   const [newListDescription, setNewListDescription] = useState('');
