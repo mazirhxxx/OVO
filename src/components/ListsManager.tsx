@@ -805,6 +805,18 @@ export function ListsManager() {
                             <Sparkles className="h-4 w-4 mr-2" />
                             Enrich List
                           </button>
+                          <button
+                            onClick={() => setShowCleaningModal(true)}
+                            disabled={leads.length === 0}
+                            className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                              theme === 'gold'
+                                ? 'border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10'
+                                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                            } disabled:opacity-50`}
+                          >
+                            <Filter className="h-4 w-4 mr-2" />
+                            Clean List
+                          </button>
                         </div>
                       </div>
 
