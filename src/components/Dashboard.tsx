@@ -175,7 +175,7 @@ export function Dashboard() {
 
         campaignMetricsData.push({
           campaign_id: campaign.id,
-          campaign_name: campaign.offer || campaign.name || 'Untitled Campaign',
+          campaign_name: campaign.name || 'Untitled Campaign',
           total_leads: campaignLeadsCount,
           calls_made: campaignCalls,
           sms_sent: campaignSMS,
@@ -867,12 +867,12 @@ export function Dashboard() {
                           <h3 className={`font-semibold ${
                             theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
                           }`}>
-                            {campaign.offer || campaign.name || 'Untitled Campaign'}
+                            {campaign.name || 'Untitled Campaign'}
                           </h3>
                           <p className={`text-sm ${
                             theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
                           }`}>
-                            Created {new Date(campaign.created_at).toLocaleDateString()}
+                            {campaign.offer ? campaign.offer.substring(0, 80) + (campaign.offer.length > 80 ? '...' : '') : 'No offer description'}
                           </p>
                         </div>
                       </div>
