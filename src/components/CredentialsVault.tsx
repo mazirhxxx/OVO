@@ -813,12 +813,30 @@ export function CredentialsVault() {
           actor={selectedActor}
           onClose={() => {
             setShowAutoCapture(false);
+        !showAutoCapture ? (
+          <ActorConfigModal
+            actor={selectedActor}
+            onClose={() => setSelectedActor(null)}
+            onSuccess={() => {
+              setSelectedActor(null);
+              fetchCredentials();
+            }}
+          />
+        ) : null
+      )}
+
+      {/* Auto-Capture Flow Modal */}
+      {showAutoCapture && selectedActor && (
+        <AutoCaptureFlow
+          actor={selectedActor}
+          onClose={() => {
+            setShowAutoCapture(false);
             setSelectedActor(null);
           }}
           onSuccess={() => {
             setShowAutoCapture(false);
             setSelectedActor(null);
-            fetchUserCredentials();
+            fetchCredentials();
           }}
         />
       )}
