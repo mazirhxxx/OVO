@@ -4,7 +4,6 @@ import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
 import { LoadingSpinner } from './common/LoadingSpinner';
 import { ErrorMessage } from './common/ErrorMessage';
-import { CredentialsManager } from '../utils/credentialsManager';
 import { AutoCaptureFlow } from './AutoCaptureFlow';
 import { 
   Shield, 
@@ -78,6 +77,9 @@ const ACTOR_REGISTRY = [
       { "key": "cookieString", "label": "Raw Cookie String", "type": "textarea", "required": false, "mask": false, "helper": "Paste from .x.com or .twitter.com" },
       { "key": "auth_token", "label": "auth_token", "type": "password", "required": true, "mask": true },
       { "key": "ct0", "label": "ct0 (CSRF)", "type": "password", "required": true, "mask": true },
+    ]
+  }
+]
       { "key": "userAgent", "label": "User Agent", "type": "text", "required": true, "mask": false }
     ],
     "verifyHint": "Fetch https://x.com/settings/account or who-am-I endpoint"
@@ -814,12 +816,30 @@ export function CredentialsVault() {
           actor={selectedActor}
           onClose={() => {
             setShowAutoCapture(false);
+        !showAutoCapture ? (
+          <ActorConfigModal
+            actor={selectedActor}
+            onClose={() => setSelectedActor(null)}
+            onSuccess={() => {
+              setSelectedActor(null);
+              fetchCredentials();
+            }}
+          />
+        ) : null
+      )}
+
+      {/* Auto-Capture Flow Modal */}
+      {showAutoCapture && selectedActor && (
+        <AutoCaptureFlow
+          actor={selectedActor}
+          onClose={() => {
+            setShowAutoCapture(false);
             setSelectedActor(null);
           }}
           onSuccess={() => {
             setShowAutoCapture(false);
             setSelectedActor(null);
-            fetchUserCredentials();
+            fetchCredentials();
           }}
         />
       )}
