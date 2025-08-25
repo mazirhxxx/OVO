@@ -9,6 +9,7 @@ import { IntentDiscoveryChat } from './IntentDiscoveryChat';
 import { ExportToCampaignModal } from './ExportToCampaignModal';
 import { LeadUploadModal } from './LeadUploadModal';
 import { EnrichmentModal } from './EnrichmentModal';
+import { ListCleaningModal } from './ListCleaningModal';
 import { 
   Plus, 
   Users, 
