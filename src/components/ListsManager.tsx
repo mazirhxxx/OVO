@@ -32,7 +32,7 @@ import {
   Send,
   Filter,
   Shield,
-  Sparkles
+  Sparkles,
   MessageSquare,
   Sparkles,
   Shield
