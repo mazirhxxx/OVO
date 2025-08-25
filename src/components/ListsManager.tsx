@@ -1165,6 +1165,20 @@ export function ListsManager() {
           }}
         />
       )}
+
+      {/* List Cleaning Modal */}
+      {showCleaningModal && selectedList && (
+        <ListCleaningModal
+          listId={selectedList}
+          listName={lists.find(l => l.id === selectedList)?.name || 'Selected List'}
+          onClose={() => setShowCleaningModal(false)}
+          onSuccess={() => {
+            setShowCleaningModal(false);
+            if (selectedList) fetchListLeads(selectedList);
+            fetchLists(); // Update counts
+          }}
+        />
+      )}
     </div>
   );
 }
