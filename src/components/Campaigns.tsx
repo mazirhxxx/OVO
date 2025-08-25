@@ -282,7 +282,7 @@ export function Campaigns() {
                         <h3 className={`text-lg font-semibold ${
                           theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
                         }`}>
-                          {campaign.offer || campaign.name || 'New Campaign'}
+                          {campaign.name || 'New Campaign'}
                         </h3>
                         <p className={`text-sm ${
                           theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
@@ -304,7 +304,7 @@ export function Campaigns() {
                   <p className={`text-sm mb-4 ${
                     theme === 'gold' ? 'text-gray-300' : 'text-gray-600'
                   }`}>
-                    {campaign.goal || campaign.offer || 'No description available'}
+                    {campaign.offer || 'No offer description available'}
                   </p>
 
                   <div className="flex items-center justify-between">
