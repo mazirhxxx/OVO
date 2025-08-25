@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
 import { DynamicChannelForm } from './DynamicChannelForm';
+import { CredentialsVault } from './CredentialsVault';
 import { 
   User, 
   Bell, 
@@ -18,7 +19,8 @@ import {
   Crown,
   Zap,
   Settings as SettingsIcon,
-  ExternalLink
+  ExternalLink,
+  Database
 } from 'lucide-react';
 
 interface Channel {
@@ -48,6 +50,7 @@ export function Settings() {
     { key: 'security', label: 'Security', icon: Shield },
     { key: 'appearance', label: 'Appearance', icon: Palette },
     { key: 'channels', label: 'Channels', icon: MessageSquare },
+    { key: 'vault', label: 'Credentials Vault', icon: Database },
   ];
 
   useEffect(() => {
@@ -174,6 +177,16 @@ export function Settings() {
                 </button>
               );
             })}
+            <button
+              onClick={() => setActiveTab('vault')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'vault'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Credentials Vault
+            </button>
           </nav>
         </div>
 
@@ -630,6 +643,11 @@ export function Settings() {
                 Security settings will be available soon.
               </p>
             </div>
+          )}
+
+          {/* Credentials Vault Tab */}
+          {activeTab === 'vault' && (
+            <CredentialsVault />
           )}
         </div>
       </div>
