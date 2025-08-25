@@ -15,7 +15,16 @@ import {
   Clock,
   BarChart3,
   Zap,
-  Crown
+  Crown,
+  Shield,
+  Cookie,
+  Key,
+  Eye,
+  EyeOff,
+  Copy,
+  Settings,
+  Plus,
+  Trash2
 } from 'lucide-react';
 
 interface IntentRun {
@@ -29,6 +38,8 @@ interface IntentRun {
   status: string;
   created_at: string;
   completed_at: string | null;
+  credentials?: Record<string, any>;
+  actors_config?: Record<string, any>;
 }
 
 interface IntentDiscoveryChatProps {
@@ -42,6 +53,178 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
   const [isRunning, setIsRunning] = useState(false);
   const [recentRuns, setRecentRuns] = useState<IntentRun[]>([]);
   const [currentRun, setCurrentRun] = useState<IntentRun | null>(null);
+  const [showCredentials, setShowCredentials] = useState(false);
+  const [credentials, setCredentials] = useState<Record<string, any>>({});
+  const [selectedActors, setSelectedActors] = useState<string[]>([
+    'linkedin-basic',
+    'x-twitter',
+    'google-maps',
+    'indeed-jobs'
+  ]);
+  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
+
+  // Actor definitions
+  const actors = {
+    'linkedin-basic': {
+      title: 'LinkedIn Basic',
+      category: 'social',
+      icon: '💼',
+      requiresCookies: true,
+      fields: [
+        { key: 'li_at', label: 'li_at Cookie', type: 'password', required: true },
+        { key: 'JSESSIONID', label: 'JSESSIONID', type: 'password', required: true }
+      ],
+      helper: 'Chrome: DevTools → Application → Cookies → linkedin.com'
+    },
+    'linkedin-sales-navigator': {
+      title: 'Sales Navigator',
+      category: 'social',
+      icon: '🎯',
+      requiresCookies: true,
+      fields: [
+        { key: 'li_at', label: 'li_at Cookie', type: 'password', required: true },
+        { key: 'JSESSIONID', label: 'JSESSIONID', type: 'password', required: true },
+        { key: 'li_a', label: 'li_a Cookie', type: 'password', required: false }
+      ],
+      helper: 'Chrome: DevTools → Application → Cookies → linkedin.com'
+    },
+    'x-twitter': {
+      title: 'X (Twitter)',
+      category: 'social',
+      icon: '🐦',
+      requiresCookies: true,
+      fields: [
+        { key: 'auth_token', label: 'auth_token', type: 'password', required: true },
+        { key: 'ct0', label: 'ct0 (CSRF Token)', type: 'password', required: true }
+      ],
+      helper: 'Chrome: DevTools → Application → Cookies → twitter.com'
+    },
+    'facebook-groups': {
+      title: 'Facebook Groups',
+      category: 'social',
+      icon: '👥',
+      requiresCookies: true,
+      fields: [
+        { key: 'c_user', label: 'c_user', type: 'password', required: true },
+        { key: 'xs', label: 'xs Cookie', type: 'password', required: true },
+        { key: 'fr', label: 'fr Cookie', type: 'password', required: true }
+      ],
+      helper: 'Chrome: DevTools → Application → Cookies → facebook.com'
+    },
+    'instagram-basic': {
+      title: 'Instagram',
+      category: 'social',
+      icon: '📸',
+      requiresCookies: true,
+      fields: [
+        { key: 'sessionid', label: 'sessionid', type: 'password', required: true },
+        { key: 'csrftoken', label: 'csrftoken', type: 'password', required: true }
+      ],
+      helper: 'Chrome: DevTools → Application → Cookies → instagram.com'
+    },
+    'reddit-auth': {
+      title: 'Reddit',
+      category: 'social',
+      icon: '🤖',
+      requiresCookies: true,
+      fields: [
+        { key: 'reddit_session', label: 'reddit_session', type: 'password', required: true }
+      ],
+      helper: 'Chrome: DevTools → Application → Cookies → reddit.com'
+    },
+    'google-maps': {
+      title: 'Google Maps',
+      category: 'maps',
+      icon: '🗺️',
+      requiresCookies: true,
+      fields: [
+        { key: 'SAPISID', label: 'SAPISID', type: 'password', required: true },
+        { key: '__Secure-3PSAPISID', label: '__Secure-3PSAPISID', type: 'password', required: true }
+      ],
+      helper: 'Chrome: DevTools → Application → Cookies → maps.google.com'
+    },
+    'indeed-jobs': {
+      title: 'Indeed Jobs',
+      category: 'jobs',
+      icon: '💼',
+      requiresCookies: true,
+      fields: [
+        { key: 'CTK', label: 'CTK Session', type: 'password', required: true }
+      ],
+      helper: 'Chrome: DevTools → Application → Cookies → indeed.com'
+    },
+    'glassdoor': {
+      title: 'Glassdoor',
+      category: 'jobs',
+      icon: '🏢',
+      requiresCookies: true,
+      fields: [
+        { key: 'GDSession', label: 'GDSession', type: 'password', required: true },
+        { key: 'TS01ac2299', label: 'TS Cookie', type: 'password', required: true }
+      ],
+      helper: 'Chrome: DevTools → Application → Cookies → glassdoor.com'
+    },
+    'apollo-portal': {
+      title: 'Apollo.io',
+      category: 'enrichment',
+      icon: '🚀',
+      requiresCookies: false,
+      fields: [
+        { key: 'api_key', label: 'API Key', type: 'password', required: true }
+      ],
+      helper: 'Get from Apollo.io dashboard → Settings → API'
+    },
+    'hunter-io': {
+      title: 'Hunter.io',
+      category: 'enrichment',
+      icon: '🔍',
+      requiresCookies: false,
+      fields: [
+        { key: 'api_key', label: 'API Key', type: 'password', required: true }
+      ],
+      helper: 'Get from Hunter.io dashboard → API tab'
+    },
+    'people-data-labs': {
+      title: 'People Data Labs',
+      category: 'enrichment',
+      icon: '👥',
+      requiresCookies: false,
+      fields: [
+        { key: 'api_key', label: 'API Key', type: 'password', required: true }
+      ],
+      helper: 'Get from PDL dashboard → API Keys'
+    },
+    'dropcontact': {
+      title: 'Dropcontact',
+      category: 'enrichment',
+      icon: '📧',
+      requiresCookies: false,
+      fields: [
+        { key: 'api_key', label: 'API Key', type: 'password', required: true }
+      ],
+      helper: 'Get from Dropcontact dashboard → API'
+    },
+    'serper-bing': {
+      title: 'Serper (Bing)',
+      category: 'search',
+      icon: '🔎',
+      requiresCookies: false,
+      fields: [
+        { key: 'api_key', label: 'API Key', type: 'password', required: true }
+      ],
+      helper: 'Get from Serper.dev dashboard'
+    },
+    'github-scraper': {
+      title: 'GitHub',
+      category: 'developer',
+      icon: '👨‍💻',
+      requiresCookies: true,
+      fields: [
+        { key: 'user_session', label: 'user_session', type: 'password', required: true }
+      ],
+      helper: 'Chrome: DevTools → Application → Cookies → github.com'
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -97,7 +280,12 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
           signals,
           seed_queries: [message],
           status: 'running',
-          budget_max_usd: 8
+          budget_max_usd: 8,
+          credentials: Object.keys(credentials).length > 0 ? credentials : null,
+          actors_config: {
+            selected_actors: selectedActors,
+            actors_used: selectedActors
+          }
         }])
         .select()
         .single();
@@ -119,6 +307,8 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
           niche,
           signals,
           seed_queries: [message],
+          credentials: Object.keys(credentials).length > 0 ? credentials : null,
+          selected_actors: selectedActors,
           actors_allow: ["twitter_search_ppr", "reddit_members", "places_yelp", "jobs_indeed"],
           top_k: 300,
           budget: { max_usd: 8 },
@@ -222,14 +412,73 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
     return signals.length > 0 ? signals : ['general_intent'];
   };
 
+  const parseCookieString = (cookieString: string): Record<string, string> => {
+    const cookies: Record<string, string> = {};
+    cookieString.split(';').forEach(cookie => {
+      const [key, ...valueParts] = cookie.split('=');
+      if (key && valueParts.length > 0) {
+        const cleanKey = key.trim();
+        const cleanValue = valueParts.join('=').trim();
+        if (cleanKey && cleanValue) {
+          cookies[cleanKey] = cleanValue;
+        }
+      }
+    });
+    return cookies;
+  };
+
+  const handleCredentialChange = (actorSlug: string, field: string, value: string) => {
+    setCredentials(prev => ({
+      ...prev,
+      [actorSlug]: {
+        ...prev[actorSlug],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleRawCookiesParse = (actorSlug: string, rawCookies: string) => {
+    const parsedCookies = parseCookieString(rawCookies);
+    const actor = actors[actorSlug as keyof typeof actors];
+    
+    if (actor) {
+      const actorCredentials: Record<string, string> = {};
+      actor.fields.forEach(field => {
+        if (parsedCookies[field.key]) {
+          actorCredentials[field.key] = parsedCookies[field.key];
+        }
+      });
+      
+      setCredentials(prev => ({
+        ...prev,
+        [actorSlug]: {
+          ...prev[actorSlug],
+          ...actorCredentials,
+          user_agent: navigator.userAgent
+        }
+      }));
+    }
+  };
+
+  const getCredentialStatus = (actorSlug: string) => {
+    const actorCreds = credentials[actorSlug];
+    if (!actorCreds) return 'not_connected';
+    
+    const actor = actors[actorSlug as keyof typeof actors];
+    if (!actor) return 'not_connected';
+    
+    const requiredFields = actor.fields.filter(f => f.required);
+    const hasAllRequired = requiredFields.every(field => actorCreds[field.key]?.trim());
+    
+    return hasAllRequired ? 'connected' : 'incomplete';
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed':
+      case 'connected':
         return CheckCircle;
-      case 'failed':
+      case 'incomplete':
         return AlertCircle;
-      case 'running':
-        return Clock;
       default:
         return Clock;
     }
@@ -237,6 +486,10 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'connected':
+        return theme === 'gold' ? 'text-green-400' : 'text-green-600';
+      case 'incomplete':
+        return theme === 'gold' ? 'text-yellow-400' : 'text-yellow-600';
       case 'completed':
         return theme === 'gold' ? 'text-green-400' : 'text-green-600';
       case 'failed':
@@ -274,6 +527,228 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
         }`}>
           Describe what type of leads you're looking for, and our AI will find prospects with buying intent across multiple platforms.
         </p>
+
+        {/* Credentials Section */}
+        <div className={`mb-6 p-4 rounded-lg border ${
+          theme === 'gold'
+            ? 'border-yellow-400/20 bg-yellow-400/5'
+            : 'border-blue-200 bg-blue-50'
+        }`}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <Shield className={`h-5 w-5 ${
+                theme === 'gold' ? 'text-yellow-400' : 'text-blue-600'
+              }`} />
+              <h4 className={`text-sm font-medium ${
+                theme === 'gold' ? 'text-yellow-400' : 'text-blue-700'
+              }`}>
+                Scraping Credentials ({Object.keys(credentials).length}/{selectedActors.length})
+              </h4>
+            </div>
+            <button
+              onClick={() => setShowCredentials(!showCredentials)}
+              className={`text-sm ${
+                theme === 'gold' ? 'text-yellow-400' : 'text-blue-600'
+              } hover:underline`}
+            >
+              {showCredentials ? 'Hide' : 'Setup Credentials'}
+            </button>
+          </div>
+
+          {/* Actor Status Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            {selectedActors.map(actorSlug => {
+              const actor = actors[actorSlug as keyof typeof actors];
+              const status = getCredentialStatus(actorSlug);
+              const StatusIcon = getStatusIcon(status);
+              
+              return (
+                <div
+                  key={actorSlug}
+                  className={`p-3 rounded-lg border ${
+                    status === 'connected'
+                      ? theme === 'gold'
+                        ? 'border-green-500/30 bg-green-500/10'
+                        : 'border-green-200 bg-green-50'
+                      : theme === 'gold'
+                        ? 'border-gray-600 bg-gray-800/50'
+                        : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className="text-lg">{actor?.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-xs font-medium truncate ${
+                        theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
+                      }`}>
+                        {actor?.title}
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <StatusIcon className={`h-3 w-3 ${getStatusColor(status)}`} />
+                        <span className={`text-xs ${getStatusColor(status)}`}>
+                          {status === 'connected' ? 'Ready' : status === 'incomplete' ? 'Setup' : 'Not Set'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Credentials Setup */}
+          {showCredentials && (
+            <div className="space-y-4">
+              {selectedActors.map(actorSlug => {
+                const actor = actors[actorSlug as keyof typeof actors];
+                const actorCreds = credentials[actorSlug] || {};
+                
+                return (
+                  <div
+                    key={actorSlug}
+                    className={`p-4 rounded-lg border ${
+                      theme === 'gold'
+                        ? 'border-yellow-400/20 bg-black/20'
+                        : 'border-gray-200 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3 mb-4">
+                      <span className="text-xl">{actor?.icon}</span>
+                      <div>
+                        <h5 className={`font-medium ${
+                          theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
+                        }`}>
+                          {actor?.title}
+                        </h5>
+                        <p className={`text-xs ${
+                          theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
+                        }`}>
+                          {actor?.helper}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Raw Cookie String Input */}
+                    {actor?.requiresCookies && (
+                      <div className="mb-4">
+                        <label className={`block text-xs font-medium mb-2 ${
+                          theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
+                          Paste Raw Cookie String (Quick Setup)
+                        </label>
+                        <div className="flex space-x-2">
+                          <input
+                            type="text"
+                            placeholder="Paste browser cookies here..."
+                            className={`flex-1 px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-2 ${
+                              theme === 'gold'
+                                ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                                : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                            }`}
+                            onPaste={(e) => {
+                              const pastedText = e.clipboardData.getData('text');
+                              handleRawCookiesParse(actorSlug, pastedText);
+                            }}
+                          />
+                          <button
+                            onClick={() => {
+                              const input = document.querySelector(`input[placeholder="Paste browser cookies here..."]`) as HTMLInputElement;
+                              if (input?.value) {
+                                handleRawCookiesParse(actorSlug, input.value);
+                                input.value = '';
+                              }
+                            }}
+                            className={`px-3 py-2 text-xs rounded-lg transition-colors ${
+                              theme === 'gold'
+                                ? 'border border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10'
+                                : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            Parse
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Individual Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {actor?.fields.map(field => {
+                        const isSecret = field.type === 'password';
+                        const showField = showSecrets[`${actorSlug}-${field.key}`] || false;
+                        
+                        return (
+                          <div key={field.key}>
+                            <label className={`block text-xs font-medium mb-1 ${
+                              theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
+                              {field.label}
+                              {field.required && <span className="text-red-500 ml-1">*</span>}
+                            </label>
+                            <div className="relative">
+                              <input
+                                type={isSecret && !showField ? 'password' : 'text'}
+                                value={actorCreds[field.key] || ''}
+                                onChange={(e) => handleCredentialChange(actorSlug, field.key, e.target.value)}
+                                className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-2 ${
+                                  isSecret ? 'pr-8' : ''
+                                } ${
+                                  theme === 'gold'
+                                    ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                                    : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                                }`}
+                                placeholder={field.key}
+                              />
+                              {isSecret && (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowSecrets(prev => ({
+                                    ...prev,
+                                    [`${actorSlug}-${field.key}`]: !showField
+                                  }))}
+                                  className={`absolute right-2 top-1/2 transform -translate-y-1/2 ${
+                                    theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
+                                  }`}
+                                >
+                                  {showField ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {/* User Agent Field */}
+                      <div className="md:col-span-2">
+                        <label className={`block text-xs font-medium mb-1 ${
+                          theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
+                          User Agent
+                        </label>
+                        <input
+                          type="text"
+                          value={actorCreds.user_agent || navigator.userAgent}
+                          onChange={(e) => handleCredentialChange(actorSlug, 'user_agent', e.target.value)}
+                          className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-2 ${
+                            theme === 'gold'
+                              ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                              : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                          }`}
+                          placeholder="Browser user agent"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className={`text-xs ${
+            theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
+          }`}>
+            💡 Credentials are stored securely and only used for this discovery run
+          </div>
+        </div>
 
         {/* Current Run Status */}
         {currentRun && isRunning && (
@@ -476,6 +951,7 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
           <li>• Be specific about industry and role (e.g., "SaaS founders", "Marketing directors")</li>
           <li>• Include buying signals (e.g., "hiring", "raised funding", "looking for")</li>
           <li>• Mention pain points or needs (e.g., "struggling with lead gen")</li>
+          <li>• Add credentials above to unlock premium data sources</li>
           <li>• Each run costs ~$2-8 and finds 100-300 high-intent leads</li>
         </ul>
       </div>
