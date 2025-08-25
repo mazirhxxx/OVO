@@ -4,6 +4,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
 import { LoadingSpinner } from './common/LoadingSpinner';
 import { ErrorMessage } from './common/ErrorMessage';
+import { CredentialsManager } from '../utils/credentialsManager';
 import { AutoCaptureFlow } from './AutoCaptureFlow';
 import { 
   Shield, 
@@ -813,30 +814,12 @@ export function CredentialsVault() {
           actor={selectedActor}
           onClose={() => {
             setShowAutoCapture(false);
-        !showAutoCapture ? (
-          <ActorConfigModal
-            actor={selectedActor}
-            onClose={() => setSelectedActor(null)}
-            onSuccess={() => {
-              setSelectedActor(null);
-              fetchCredentials();
-            }}
-          />
-        ) : null
-      )}
-
-      {/* Auto-Capture Flow Modal */}
-      {showAutoCapture && selectedActor && (
-        <AutoCaptureFlow
-          actor={selectedActor}
-          onClose={() => {
-            setShowAutoCapture(false);
             setSelectedActor(null);
           }}
           onSuccess={() => {
             setShowAutoCapture(false);
             setSelectedActor(null);
-            fetchCredentials();
+            fetchUserCredentials();
           }}
         />
       )}
