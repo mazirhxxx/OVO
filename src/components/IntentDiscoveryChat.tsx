@@ -391,30 +391,30 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
               return (
                 <div
                   key={run.id}
-                  className={`p-4 rounded-lg border ${
+                  className={`p-4 rounded-lg border overflow-hidden ${
                     theme === 'gold'
                       ? 'border-yellow-400/10 bg-black/10'
                       : 'border-gray-200 bg-white'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
+                  <div className="flex items-start justify-between mb-2 gap-3">
+                    <div className="flex items-center space-x-2 min-w-0 flex-1">
                       <StatusIcon className={`h-4 w-4 ${getStatusColor(run.status)}`} />
-                      <span className={`text-sm font-medium ${
+                      <span className={`text-sm font-medium truncate ${
                         theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
                       }`}>
-                        {run.goal}
+                        {run.goal.length > 80 ? `${run.goal.substring(0, 80)}...` : run.goal}
                       </span>
                     </div>
-                    <span className={`text-xs ${
+                    <span className={`text-xs whitespace-nowrap flex-shrink-0 ${
                       theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
                     }`}>
                       {new Date(run.created_at).toLocaleDateString()}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4 text-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div className="flex items-center space-x-3 text-xs flex-wrap">
                       <span className={theme === 'gold' ? 'text-gray-400' : 'text-gray-600'}>
                         <Target className="h-3 w-3 inline mr-1" />
                         {run.leads_found} leads
@@ -423,24 +423,33 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
                         <DollarSign className="h-3 w-3 inline mr-1" />
                         ${run.cost_usd.toFixed(2)}
                       </span>
-                      <span className={theme === 'gold' ? 'text-gray-400' : 'text-gray-600'}>
+                      <span className={`${theme === 'gold' ? 'text-gray-400' : 'text-gray-600'} truncate max-w-20`}>
                         {run.niche}
                       </span>
                     </div>
                     
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1 justify-end">
                       {run.signals.slice(0, 2).map((signal, index) => (
                         <span
                           key={index}
-                          className={`text-xs px-2 py-1 rounded-full ${
+                          className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${
                             theme === 'gold'
                               ? 'bg-blue-500/20 text-blue-400'
                               : 'bg-blue-100 text-blue-700'
                           }`}
                         >
-                          {signal}
+                          {signal.length > 12 ? `${signal.substring(0, 12)}...` : signal}
                         </span>
                       ))}
+                      {run.signals.length > 2 && (
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          theme === 'gold'
+                            ? 'bg-gray-500/20 text-gray-400'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          +{run.signals.length - 2}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
