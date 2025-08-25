@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { CredentialsVault } from './CredentialsVault';
 import { supabase } from '../lib/supabase';
 import { LoadingSpinner } from './common/LoadingSpinner';
 import { ErrorMessage } from './common/ErrorMessage';
@@ -87,6 +88,7 @@ export function ListsManager() {
   const [lists, setLists] = useState<List[]>([]);
   const [selectedList, setSelectedList] = useState<string | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [showCredentialsVault, setShowCredentialsVault] = useState(false);
   const [discoveredLeads, setDiscoveredLeads] = useState<DiscoveredLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -451,6 +453,7 @@ export function ListsManager() {
           <nav className="flex overflow-x-auto px-4 sm:px-6">
             {[
               { key: 'discovery', label: 'Intent Discovery', icon: Sparkles },
+              { key: 'vault', label: 'Credentials Vault', icon: Shield },
               { key: 'discovered', label: 'Discovered Leads', icon: Target },
               { key: 'lists', label: 'My Lists', icon: Users }
             ].map((tab) => {
@@ -481,6 +484,11 @@ export function ListsManager() {
           {/* Intent Discovery Tab */}
           {activeTab === 'discovery' && (
             <IntentDiscoveryChat onLeadsFound={fetchDiscoveredLeads} />
+          )}
+
+          {/* Credentials Vault Tab */}
+          {activeTab === 'vault' && (
+            <CredentialsVault />
           )}
 
           {/* Discovered Leads Tab */}
