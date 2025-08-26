@@ -964,15 +964,31 @@ export function CredentialsVault() {
                           </ol>
                         </div>
 
+                        {/* Connect Automatically Button (for cookie-based actors) */}
+                        {actor.requiresCookies && status !== 'connected' && (
+                          <button
+                            onClick={() => setSelectedActor(actor)}
+                            className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                              theme === 'gold'
+                                ? 'gold-gradient text-black hover-gold'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
+                          >
+                            <Zap className="h-4 w-4 mr-2" />
+                            Connect Automatically
+                          </button>
+                        )}
+                        
+                        {/* Manual Setup Button */}
                         <button
                           onClick={() => {
                             setShowConnectModal(false);
                             setShowAutoCapture(true);
                           }}
-                          className={`w-full py-3 px-4 rounded-lg font-medium transition-all ${
+                          className={`inline-flex items-center px-4 py-2 text-sm rounded-lg border transition-colors ${
                             theme === 'gold'
-                              ? 'gold-gradient text-black hover-gold'
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                              ? 'border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10'
+                              : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                           }`}
                         >
                           <Sparkles className="h-4 w-4 mr-2" />
@@ -1197,8 +1213,8 @@ export function CredentialsVault() {
                             <>
                               <Save className="h-4 w-4 mr-2" />
                               Save & Encrypt
-                            </>
-                          )}
+                          <Settings className="h-4 w-4 mr-2" />
+                          Manual Setup
                         </button>
                       </div>
                     </div>
