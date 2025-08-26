@@ -964,22 +964,6 @@ export function CredentialsVault() {
                           </ol>
                         </div>
 
-                        {/* Connect Automatically Button (for cookie-based actors) */}
-                        {actor.requiresCookies && status !== 'connected' && (
-                          <button
-                            onClick={() => setSelectedActor(actor)}
-                            className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                              theme === 'gold'
-                                ? 'gold-gradient text-black hover-gold'
-                                : 'bg-blue-600 text-white hover:bg-blue-700'
-                            }`}
-                          >
-                            <Zap className="h-4 w-4 mr-2" />
-                            Connect Automatically
-                          </button>
-                        )}
-                        
-                        {/* Manual Setup Button */}
                         <button
                           onClick={() => {
                             setShowConnectModal(false);
@@ -1213,8 +1197,8 @@ export function CredentialsVault() {
                             <>
                               <Save className="h-4 w-4 mr-2" />
                               Save & Encrypt
-                          <Settings className="h-4 w-4 mr-2" />
-                          Manual Setup
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>
