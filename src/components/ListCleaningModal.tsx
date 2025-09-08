@@ -84,6 +84,9 @@ export function ListCleaningModal({ listId, listName, onClose, onSuccess }: List
     standardizeNames: true,
     cleanCompanyNames: true
   });
+  const [avatarDescription, setAvatarDescription] = useState('');
+  const [verifyingAvatar, setVerifyingAvatar] = useState(false);
+  const [avatarVerificationResult, setAvatarVerificationResult] = useState<{ success: boolean; message: string; summary?: any } | null>(null);
 
   useEffect(() => {
     if (listId) {
@@ -591,6 +594,156 @@ export function ListCleaningModal({ listId, listName, onClose, onSuccess }: List
     }
   };
 
+  const executeAvatarVerification = async () => {
+    if (!user || !avatarDescription.trim()) {
+      setResult({
+        success: false,
+        message: 'Please provide an avatar description'
+      });
+      return;
+    }
+
+    setVerifyingAvatar(true);
+    setResult(null);
+
+    try {
+      // Get all leads from the list for verification
+      const { data: allLeads, error: leadsError } = await supabase
+        .from('list_leads')
+        .select('*')
+        .eq('list_id', listId)
+        .eq('user_id', user.id);
+
+      if (leadsError) throw leadsError;
+
+      if (!allLeads || allLeads.length === 0) {
+        throw new Error('No leads found in this list');
+      }
+
+      // Generate batch ID
+      const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const avatarId = `avatar_${Date.now()}`;
+
+      // Create avatar spec
+      const avatarSpec = {
+        description: avatarDescription.trim(),
+        created_at: new Date().toISOString(),
+        list_id: listId,
+        list_name: listName
+      };
+
+      // Create cleaning session record
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('cleaning_sessions')
+        .insert({
+          owner_id: user.id,
+          avatar_spec: avatarSpec,
+          avatar_id: avatarId,
+          batch_id: batchId,
+          batch_size: 500,
+          lead_count: allLeads.length,
+          status: 'queued'
+        })
+        .select()
+        .single();
+
+      if (sessionError) throw sessionError;
+
+      // Clean and normalize leads before sending
+      const cleanedLeads = allLeads.map(lead => ({
+        id: lead.id,
+        emails: lead.email ? [lead.email.toLowerCase().trim()] : [],
+        phones: lead.phone ? [lead.phone.replace(/\s/g, '')] : [],
+        full_name: lead.name || '',
+        first_name: lead.name ? lead.name.split(' ')[0] : '',
+        last_name: lead.name ? lead.name.split(' ').slice(1).join(' ') : '',
+        title: lead.job_title || '',
+        company: lead.company_name || '',
+        company_domain: lead.source_url ? new URL(lead.source_url).hostname : '',
+        linkedin_url: lead.source_url || '',
+        source_slug: lead.source_platform || 'manual',
+        country: lead.custom_fields?.country || '',
+        state: lead.custom_fields?.state || '',
+        city: lead.custom_fields?.city || ''
+      })).filter(lead => lead.id); // Only include leads with valid IDs
+
+      // Update session to running
+      await supabase
+        .from('cleaning_sessions')
+        .update({ 
+          status: 'running',
+          started_at: new Date().toISOString()
+        })
+        .eq('id', sessionData.id);
+
+      // Send to n8n webhook
+      const webhookPayload = {
+        avatar: avatarSpec,
+        avatar_id: avatarId,
+        batch_id: batchId,
+        batch_size: 500,
+        leads: cleanedLeads
+      };
+
+      const response = await fetch('https://mazirhx.app.n8n.cloud/webhook/verify-discovered', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(webhookPayload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Webhook failed: ${response.status} ${response.statusText}`);
+      }
+
+      const webhookResult = await response.json();
+
+      // Update session with completion
+      await supabase
+        .from('cleaning_sessions')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          summary: webhookResult
+        })
+        .eq('id', sessionData.id);
+
+      setAvatarVerificationResult({
+        success: true,
+        message: `Avatar verification completed! Processed ${cleanedLeads.length} leads.`,
+        summary: webhookResult
+      });
+
+      setResult({
+        success: true,
+        message: `Avatar verification completed! ${webhookResult.summary?.accept_count || 0} ACCEPT, ${webhookResult.summary?.review_count || 0} REVIEW, ${webhookResult.summary?.reject_count || 0} REJECT. Average score: ${webhookResult.summary?.average_score?.toFixed(2) || 'N/A'}`
+      });
+
+    } catch (error) {
+      console.error('Error during avatar verification:', error);
+      
+      // Update session to failed if it was created
+      if (sessionData) {
+        await supabase
+          .from('cleaning_sessions')
+          .update({
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            summary: { error: error instanceof Error ? error.message : 'Unknown error' }
+          })
+          .eq('id', sessionData.id);
+      }
+
+      setResult({
+        success: false,
+        message: `Avatar verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    } finally {
+      setVerifyingAvatar(false);
+    }
+  };
+
   const getQualityScore = () => {
     if (!analysis) return 0;
     
@@ -935,7 +1088,7 @@ export function ListCleaningModal({ listId, listName, onClose, onSuccess }: List
                       ) : (
                         <div className="flex items-center justify-center">
                           <Target className="h-4 w-4 mr-2" />
-                          Verify Avatar Match ({leadsToImport.length} leads)
+                          Verify Avatar Match ({analysis?.totalLeads || 0} leads)
                         </div>
                       )}
                     </button>
