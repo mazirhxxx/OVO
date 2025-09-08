@@ -876,6 +876,105 @@ export function ListCleaningModal({ listId, listName, onClose, onSuccess }: List
                   </div>
                 </div>
 
+                {/* Avatar Verification Section */}
+                <div className={`p-6 rounded-lg border ${
+                  theme === 'gold'
+                    ? 'border-purple-500/20 bg-purple-500/5'
+                    : 'border-purple-200 bg-purple-50'
+                }`}>
+                  <h3 className={`text-lg font-semibold mb-4 ${
+                    theme === 'gold' ? 'text-purple-400' : 'text-purple-700'
+                  }`}>
+                    🎯 Avatar Verification
+                  </h3>
+                  <p className={`text-sm mb-4 ${
+                    theme === 'gold' ? 'text-purple-300' : 'text-purple-600'
+                  }`}>
+                    Verify which leads match your ideal client avatar using AI scoring
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${
+                        theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
+                        Describe Your Ideal Client Avatar
+                      </label>
+                      <textarea
+                        value={avatarDescription}
+                        onChange={(e) => setAvatarDescription(e.target.value)}
+                        rows={4}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                          theme === 'gold'
+                            ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                            : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                        }`}
+                        placeholder="Example: US wealth managers, 20-200 employees, must use HubSpot, hiring SDRs, located in major cities, revenue $10M+..."
+                      />
+                      <p className={`text-xs mt-1 ${
+                        theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
+                      }`}>
+                        Be specific about industry, company size, tech stack, hiring signals, location, etc.
+                      </p>
+                    </div>
+                    
+                    <button
+                      onClick={executeAvatarVerification}
+                      disabled={verifyingAvatar || !avatarDescription.trim()}
+                      className={`w-full px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                        theme === 'gold'
+                          ? 'bg-purple-600 text-white hover:bg-purple-700'
+                          : 'bg-purple-600 text-white hover:bg-purple-700'
+                      } disabled:opacity-50`}
+                    >
+                      {verifyingAvatar ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Verifying Avatar Match...
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center">
+                          <Target className="h-4 w-4 mr-2" />
+                          Verify Avatar Match ({leadsToImport.length} leads)
+                        </div>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Avatar Verification Result */}
+                {avatarVerificationResult && (
+                  <div className={`p-4 rounded-lg border ${
+                    avatarVerificationResult.success 
+                      ? theme === 'gold'
+                        ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                        : 'bg-green-50 border-green-200 text-green-800'
+                      : theme === 'gold'
+                        ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                        : 'bg-red-50 border-red-200 text-red-800'
+                  }`}>
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        {avatarVerificationResult.success ? (
+                          <CheckCircle className="h-5 w-5" />
+                        ) : (
+                          <AlertCircle className="h-5 w-5" />
+                        )}
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium">{avatarVerificationResult.message}</p>
+                        {avatarVerificationResult.summary && (
+                          <div className="text-xs mt-2 space-y-1">
+                            <div>ACCEPT: {avatarVerificationResult.summary.accept_count || 0}</div>
+                            <div>REVIEW: {avatarVerificationResult.summary.review_count || 0}</div>
+                            <div>REJECT: {avatarVerificationResult.summary.reject_count || 0}</div>
+                            <div>Average Score: {avatarVerificationResult.summary.average_score?.toFixed(2) || 'N/A'}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* Sample Issues Preview */}
                 {(analysis.phoneIssues.length > 0 || analysis.emailIssues.length > 0 || analysis.duplicateGroups.length > 0) && (
                   <div className={`p-6 rounded-lg border ${
