@@ -216,15 +216,19 @@ export function DiscoveredLeadsViewer({ intentRunId, onAddToList }: DiscoveredLe
   };
 
   const createNewListFromSelected = async () => {
-    if (!user || selectedLeads.length === 0) return;
+    if (!user) return;
+    
+    // Use all filtered leads if none are specifically selected
+    const leadsToUse = selectedLeads.length > 0 ? selectedLeads : filteredLeads.map(lead => lead.id);
+    if (leadsToUse.length === 0) return;
 
     try {
-      const selectedLeadData = leads.filter(lead => selectedLeads.includes(lead.id));
+      const selectedLeadData = leads.filter(lead => leadsToUse.includes(lead.id));
       const runData = intentRuns.find(run => run.id === selectedRun);
       
       // Create a new list
-      const listName = `Selected from: ${runData?.goal.substring(0, 40) || 'Discovery'}...`;
-      const listDescription = `${selectedLeads.length} high-intent leads selected from discovery run on ${new Date().toLocaleDateString()}`;
+      const listName = `Discovery: ${runData?.goal.substring(0, 50) || 'AI Discovery'}${runData?.goal && runData.goal.length > 50 ? '...' : ''}`;
+      const listDescription = `${leadsToUse.length} high-intent leads from discovery run on ${new Date().toLocaleDateString()}. Goal: ${runData?.goal || 'Unknown goal'}`;
       
       const { data: newList, error: listError } = await supabase
         .from('lists')
@@ -232,7 +236,7 @@ export function DiscoveredLeadsViewer({ intentRunId, onAddToList }: DiscoveredLe
           user_id: user.id,
           name: listName,
           description: listDescription,
-          tags: ['discovery', 'selected', 'high-intent']
+          tags: ['discovery', 'auto-generated', 'high-intent']
         }])
         .select()
         .single();
@@ -262,23 +266,40 @@ export function DiscoveredLeadsViewer({ intentRunId, onAddToList }: DiscoveredLe
         }
       }));
 
-      // Insert leads into the new list
-      const { error: insertError } = await supabase
-        .from('list_leads')
-        .insert(listLeads);
+      // Insert leads into the new list in batches
+      const batchSize = 50;
+      for (let i = 0; i < listLeads.length; i += batchSize) {
+        const batch = listLeads.slice(i, i + batchSize);
+        const { error: insertError } = await supabase
+          .from('list_leads')
+          .insert(batch);
 
-      if (insertError) throw insertError;
+        if (insertError) {
+          console.error('Error inserting batch:', insertError);
+          throw new Error(`Failed to insert batch ${Math.floor(i/batchSize) + 1}: ${insertError.message}`);
+        }
+      }
 
       // Show success message
-      setError(''); // Clear any existing errors
-      alert(`Successfully created list "${listName}" with ${selectedLeads.length} leads!`);
+      setResult({
+        success: true,
+        message: `Successfully created list "${listName}" with ${leadsToUse.length} leads!`
+      });
       
       // Clear selection
       setSelectedLeads([]);
       
+      // Refresh parent component if callback provided
+      if (onAddToList) {
+        onAddToList(selectedLeadData);
+      }
+      
     } catch (error) {
       console.error('Error creating list from selected leads:', error);
-      setError(`Failed to create list: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setResult({
+        success: false,
+        message: `Failed to create list: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
     }
   };
 
@@ -326,7 +347,7 @@ export function DiscoveredLeadsViewer({ intentRunId, onAddToList }: DiscoveredLe
         
         {selectedLeads.length > 0 && onAddToList && (
           <button
-            onClick={() => onAddToList(leads.filter(lead => selectedLeads.includes(lead.id)))}
+            onClick={createNewListFromSelected}
             className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
               theme === 'gold'
                 ? 'gold-gradient text-black hover-gold'
@@ -334,17 +355,44 @@ export function DiscoveredLeadsViewer({ intentRunId, onAddToList }: DiscoveredLe
             }`}
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add {selectedLeads.length} to List
+            Create New List ({selectedLeads.length})
           </button>
         )}
       </div>
 
       {/* Error Message */}
-      {error && (
-        <ErrorMessage
-          message={error}
-          onDismiss={() => setError('')}
-        />
+      {(error || result) && (
+        <div className={`rounded-lg border p-4 ${
+          result?.success || !error
+            ? theme === 'gold'
+              ? 'bg-green-500/10 border-green-500/30 text-green-400'
+              : 'bg-green-50 border-green-200 text-green-800'
+            : theme === 'gold'
+              ? 'bg-red-500/10 border-red-500/30 text-red-400'
+              : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              {result?.success || !error ? (
+                <CheckCircle className="h-5 w-5" />
+              ) : (
+                <XCircle className="h-5 w-5" />
+              )}
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium">{result?.message || error}</p>
+            </div>
+            <button
+              onClick={() => {
+                setError('');
+                setResult(null);
+              }}
+              className="ml-auto text-current hover:opacity-70"
+            >
+              ×
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Run Selection */}
