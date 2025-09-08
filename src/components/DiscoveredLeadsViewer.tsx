@@ -22,7 +22,8 @@ import {
   Target,
   BarChart3,
   CheckCircle,
-  Plus
+  Plus,
+  XCircle
 } from 'lucide-react';
 
 interface DiscoveredLead {
