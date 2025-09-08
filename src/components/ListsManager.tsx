@@ -10,6 +10,7 @@ import { EnrichmentModal } from './EnrichmentModal';
 import { ListCleaningModal } from './ListCleaningModal';
 import { ExportToCampaignModal } from './ExportToCampaignModal';
 import { IntentDiscoveryChat } from './IntentDiscoveryChat';
+import { SpreadsheetEditor } from './SpreadsheetEditor';
 import { 
   Users, 
   Plus, 
@@ -33,7 +34,8 @@ import {
   Mail, 
   Phone, 
   Briefcase,
-  Shield
+  Shield,
+  Grid
 } from 'lucide-react';
 
 interface List {
@@ -77,6 +79,7 @@ export function ListsManager() {
   const [showCleaningModal, setShowCleaningModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showIntentDiscovery, setShowIntentDiscovery] = useState(false);
+  const [showSpreadsheetEditor, setShowSpreadsheetEditor] = useState(false);
   const [editingLead, setEditingLead] = useState<ListLead | null>(null);
   const [newListName, setNewListName] = useState('');
   const [newListDescription, setNewListDescription] = useState('');
@@ -524,6 +527,19 @@ export function ListsManager() {
                       <Shield className="h-4 w-4 mr-1" />
                       Clean
                     </button>
+                    
+                    <button
+                      onClick={() => setShowSpreadsheetEditor(true)}
+                      disabled={listLeads.length === 0}
+                      className={`inline-flex items-center px-3 py-2 text-sm rounded-lg transition-colors ${
+                        theme === 'gold'
+                          ? 'border border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10'
+                          : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      } disabled:opacity-50`}
+                    >
+                      <Grid className="h-4 w-4 mr-1" />
+                      Edit Table
+                    </button>
                   </div>
                 </div>
 
@@ -637,6 +653,19 @@ export function ListsManager() {
                         >
                           <Target className="h-4 w-4 mr-2" />
                           Discover Leads
+                        </button>
+                        
+                        <button
+                          onClick={() => setShowSpreadsheetEditor(true)}
+                          disabled={listLeads.length === 0}
+                          className={`inline-flex items-center px-4 py-2 text-sm rounded-lg border transition-colors ${
+                            theme === 'gold'
+                              ? 'border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10'
+                              : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                          } disabled:opacity-50`}
+                        >
+                          <Grid className="h-4 w-4 mr-2" />
+                          Edit as Spreadsheet
                         </button>
                       </div>
                     )}
@@ -905,6 +934,20 @@ export function ListsManager() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Spreadsheet Editor Modal */}
+      {showSpreadsheetEditor && selectedList && (
+        <SpreadsheetEditor
+          listId={selectedList.id}
+          listName={selectedList.name}
+          onClose={() => setShowSpreadsheetEditor(false)}
+          onSave={() => {
+            setShowSpreadsheetEditor(false);
+            fetchListLeads();
+            fetchLists();
+          }}
+        />
       )}
 
       {/* Modals */}

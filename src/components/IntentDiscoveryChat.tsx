@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
+import { DiscoveredLeadsViewer } from './DiscoveredLeadsViewer';
 import { 
   Send, 
   Bot, 
@@ -53,6 +54,8 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
   const [isRunning, setIsRunning] = useState(false);
   const [recentRuns, setRecentRuns] = useState<IntentRun[]>([]);
   const [currentRun, setCurrentRun] = useState<IntentRun | null>(null);
+  const [showDiscoveredLeads, setShowDiscoveredLeads] = useState(false);
+  const [selectedRunForViewing, setSelectedRunForViewing] = useState<string>('');
   const [showCredentials, setShowCredentials] = useState(false);
   const [credentials, setCredentials] = useState<Record<string, any>>({});
   const [selectedActors, setSelectedActors] = useState<string[]>([
@@ -380,6 +383,8 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
         console.error('Error polling run status:', error);
         setIsRunning(false);
       }
+        setSelectedRunForViewing(runId);
+        setShowDiscoveredLeads(true);
     };
 
     poll();
@@ -668,7 +673,22 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
                           </button>
                         </div>
                       </div>
-                    )}
+                        <div className="flex flex-wrap gap-1 justify-end items-center">
+                          {run.status === 'completed' && run.leads_found > 0 && (
+                            <button
+                              onClick={() => {
+                                setSelectedRunForViewing(run.id);
+                                setShowDiscoveredLeads(true);
+                              }}
+                              className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                                theme === 'gold'
+                                  ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
+                                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                              }`}
+                            >
+                              View {run.leads_found} Leads
+                            </button>
+                          )}
 
                     {/* Individual Fields */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -749,6 +769,52 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
             💡 Credentials are stored securely and only used for this discovery run
           </div>
         </div>
+
+        {/* Discovered Leads Viewer Modal */}
+        {showDiscoveredLeads && selectedRunForViewing && (
+          <div className={`fixed inset-0 z-50 overflow-y-auto ${
+            theme === 'gold' ? 'bg-black/75' : 'bg-gray-900/50'
+          }`}>
+            <div className="flex items-center justify-center min-h-screen p-4">
+              <div className={`w-full max-w-7xl rounded-xl shadow-2xl ${
+                theme === 'gold' ? 'black-card gold-border' : 'bg-white border border-gray-200'
+              }`}>
+                <div className={`p-6 border-b ${
+                  theme === 'gold' ? 'border-yellow-400/20' : 'border-gray-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <h2 className={`text-xl font-bold ${
+                      theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
+                    }`}>
+                      Discovered Leads Results
+                    </h2>
+                    <button
+                      onClick={() => setShowDiscoveredLeads(false)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        theme === 'gold'
+                          ? 'text-gray-400 hover:bg-gray-800'
+                          : 'text-gray-500 hover:bg-gray-100'
+                      }`}
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="p-6 max-h-[80vh] overflow-y-auto">
+                  <DiscoveredLeadsViewer 
+                    intentRunId={selectedRunForViewing}
+                    onAddToList={(selectedLeads) => {
+                      console.log('Adding leads to list:', selectedLeads);
+                      // This could open another modal to select which list to add to
+                      setShowDiscoveredLeads(false);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Current Run Status */}
         {currentRun && isRunning && (
