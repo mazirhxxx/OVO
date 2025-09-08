@@ -25,7 +25,8 @@ import {
   Copy,
   Settings,
   Plus,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react';
 
 interface IntentRun {
@@ -365,6 +366,8 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
           setIsRunning(false);
           fetchRecentRuns();
           onLeadsFound();
+          setSelectedRunForViewing(runId);
+          setShowDiscoveredLeads(true);
           return;
         }
 
@@ -383,8 +386,6 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
         console.error('Error polling run status:', error);
         setIsRunning(false);
       }
-        setSelectedRunForViewing(runId);
-        setShowDiscoveredLeads(true);
     };
 
     poll();
@@ -673,22 +674,7 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
                           </button>
                         </div>
                       </div>
-                        <div className="flex flex-wrap gap-1 justify-end items-center">
-                          {run.status === 'completed' && run.leads_found > 0 && (
-                            <button
-                              onClick={() => {
-                                setSelectedRunForViewing(run.id);
-                                setShowDiscoveredLeads(true);
-                              }}
-                              className={`text-xs px-2 py-1 rounded-full transition-colors ${
-                                theme === 'gold'
-                                  ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
-                                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                              }`}
-                            >
-                              View {run.leads_found} Leads
-                            </button>
-                          )}
+                    )}
 
                     {/* Individual Fields */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -969,7 +955,22 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
                       </span>
                     </div>
                     
-                    <div className="flex flex-wrap gap-1 justify-end">
+                    <div className="flex flex-wrap gap-1 justify-end items-center">
+                      {run.status === 'completed' && run.leads_found > 0 && (
+                        <button
+                          onClick={() => {
+                            setSelectedRunForViewing(run.id);
+                            setShowDiscoveredLeads(true);
+                          }}
+                          className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                            theme === 'gold'
+                              ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
+                              : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                          }`}
+                        >
+                          View {run.leads_found} Leads
+                        </button>
+                      )}
                       {run.signals.slice(0, 2).map((signal, index) => (
                         <span
                           key={index}
