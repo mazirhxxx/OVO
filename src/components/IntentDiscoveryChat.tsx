@@ -365,6 +365,12 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
         if (data.status === 'completed') {
           setIsRunning(false);
           fetchRecentRuns();
+          
+          // Auto-create list from discovered leads
+          if (data.leads_found > 0) {
+            await createListFromDiscoveredLeads(runId, data.goal);
+          }
+          
           onLeadsFound();
           setSelectedRunForViewing(runId);
           setShowDiscoveredLeads(true);
@@ -389,6 +395,82 @@ export function IntentDiscoveryChat({ onLeadsFound }: IntentDiscoveryChatProps) 
     };
 
     poll();
+  };
+
+  const createListFromDiscoveredLeads = async (runId: string, goal: string) => {
+    if (!user) return;
+
+    try {
+      // Create a new list for this discovery run
+      const listName = `Discovery: ${goal.substring(0, 50)}${goal.length > 50 ? '...' : ''}`;
+      const listDescription = `Auto-generated from discovery run on ${new Date().toLocaleDateString()}. Goal: ${goal}`;
+      
+      const { data: newList, error: listError } = await supabase
+        .from('lists')
+        .insert([{
+          user_id: user.id,
+          name: listName,
+          description: listDescription,
+          tags: ['discovery', 'auto-generated']
+        }])
+        .select()
+        .single();
+
+      if (listError) throw listError;
+
+      // Get discovered leads from this run
+      const { data: discoveredLeads, error: leadsError } = await supabase
+        .from('discovered_leads')
+        .select('*')
+        .eq('intent_run_id', runId)
+        .eq('user_id', user.id);
+
+      if (leadsError) throw leadsError;
+
+      if (discoveredLeads && discoveredLeads.length > 0) {
+        // Transform discovered leads to list leads format
+        const listLeads = discoveredLeads.map(lead => ({
+          list_id: newList.id,
+          user_id: user.id,
+          name: lead.full_name || `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unknown Lead',
+          email: lead.email,
+          phone: lead.phone,
+          company_name: lead.company,
+          job_title: lead.title,
+          source_url: lead.linkedin_url,
+          source_platform: lead.source_slug || 'discovery',
+          custom_fields: {
+            intent_score: lead.intent_score,
+            tags: lead.tags || [],
+            reasons: lead.reasons || [],
+            country: lead.country,
+            state: lead.state,
+            city: lead.city,
+            company_domain: lead.company_domain,
+            discovery_run_id: runId
+          }
+        }));
+
+        // Insert leads into the new list in batches
+        const batchSize = 50;
+        for (let i = 0; i < listLeads.length; i += batchSize) {
+          const batch = listLeads.slice(i, i + batchSize);
+          const { error: insertError } = await supabase
+            .from('list_leads')
+            .insert(batch);
+
+          if (insertError) {
+            console.error('Error inserting batch:', insertError);
+            // Continue with next batch even if one fails
+          }
+        }
+
+        console.log(`Created list "${listName}" with ${listLeads.length} discovered leads`);
+      }
+    } catch (error) {
+      console.error('Error creating list from discovered leads:', error);
+      // Don't fail the whole process if list creation fails
+    }
   };
 
   const extractNiche = (text: string): string => {

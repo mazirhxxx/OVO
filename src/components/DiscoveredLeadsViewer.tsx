@@ -215,6 +215,73 @@ export function DiscoveredLeadsViewer({ intentRunId, onAddToList }: DiscoveredLe
     URL.revokeObjectURL(url);
   };
 
+  const createNewListFromSelected = async () => {
+    if (!user || selectedLeads.length === 0) return;
+
+    try {
+      const selectedLeadData = leads.filter(lead => selectedLeads.includes(lead.id));
+      const runData = intentRuns.find(run => run.id === selectedRun);
+      
+      // Create a new list
+      const listName = `Selected from: ${runData?.goal.substring(0, 40) || 'Discovery'}...`;
+      const listDescription = `${selectedLeads.length} high-intent leads selected from discovery run on ${new Date().toLocaleDateString()}`;
+      
+      const { data: newList, error: listError } = await supabase
+        .from('lists')
+        .insert([{
+          user_id: user.id,
+          name: listName,
+          description: listDescription,
+          tags: ['discovery', 'selected', 'high-intent']
+        }])
+        .select()
+        .single();
+
+      if (listError) throw listError;
+
+      // Transform selected discovered leads to list leads format
+      const listLeads = selectedLeadData.map(lead => ({
+        list_id: newList.id,
+        user_id: user.id,
+        name: lead.full_name || `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Unknown Lead',
+        email: lead.email,
+        phone: lead.phone,
+        company_name: lead.company,
+        job_title: lead.title,
+        source_url: lead.linkedin_url,
+        source_platform: lead.source_slug || 'discovery',
+        custom_fields: {
+          intent_score: lead.intent_score,
+          tags: lead.tags || [],
+          reasons: lead.reasons || [],
+          country: lead.country,
+          state: lead.state,
+          city: lead.city,
+          company_domain: lead.company_domain,
+          discovery_run_id: lead.intent_run_id
+        }
+      }));
+
+      // Insert leads into the new list
+      const { error: insertError } = await supabase
+        .from('list_leads')
+        .insert(listLeads);
+
+      if (insertError) throw insertError;
+
+      // Show success message
+      setError(''); // Clear any existing errors
+      alert(`Successfully created list "${listName}" with ${selectedLeads.length} leads!`);
+      
+      // Clear selection
+      setSelectedLeads([]);
+      
+    } catch (error) {
+      console.error('Error creating list from selected leads:', error);
+      setError(`Failed to create list: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   const getIntentScoreColor = (score: number) => {
     if (score >= 0.8) return theme === 'gold' ? 'text-green-400' : 'text-green-600';
     if (score >= 0.6) return theme === 'gold' ? 'text-yellow-400' : 'text-yellow-600';
@@ -331,6 +398,20 @@ export function DiscoveredLeadsViewer({ intentRunId, onAddToList }: DiscoveredLe
                 {new Date(selectedRunData.created_at).toLocaleDateString()}
               </div>
             </div>
+          )}
+          
+          {selectedLeads.length > 0 && (
+            <button
+              onClick={createNewListFromSelected}
+              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                theme === 'gold'
+                  ? 'border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create New List ({selectedLeads.length})
+            </button>
           )}
         </div>
       </div>
