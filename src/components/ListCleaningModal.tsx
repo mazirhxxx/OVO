@@ -87,6 +87,157 @@ export function ListCleaningModal({ listId, listName, onClose, onSuccess }: List
   const [avatarDescription, setAvatarDescription] = useState('');
   const [verifyingAvatar, setVerifyingAvatar] = useState(false);
   const [avatarVerificationResult, setAvatarVerificationResult] = useState<{ success: boolean; message: string; summary?: any } | null>(null);
+  const [sessionData, setSessionData] = useState<any>(null);
+
+  // Structured avatar form state
+  const [avatarSpec, setAvatarSpec] = useState({
+    name: '',
+    geo: [] as string[],
+    industries: [] as string[],
+    employee_range: { min: null as number | null, max: null as number | null },
+    company_revenue_usd: { min: null as number | null, max: null as number | null },
+    roles_primary: [] as string[],
+    roles_secondary: [] as string[],
+    exclude_titles_contains: ['Intern', 'Assistant', 'Recruiter', 'Student'],
+    intent_signals_any: [] as string[],
+    tech_signals_any: [] as string[],
+    contact_rules: { 
+      require_email: true, 
+      require_personal_phone: false, 
+      company_domain_required: true 
+    },
+    weighting: { 
+      firmographic: 0.35, 
+      role: 0.25, 
+      intent: 0.20, 
+      tech: 0.10, 
+      contactability: 0.10 
+    },
+    thresholds: { accept_min: 0.70, review_min: 0.50 }
+  });
+  const [useStructuredForm, setUseStructuredForm] = useState(false);
+
+  // Parse free-text description into structured avatar spec
+  const parseAvatarDescription = (description: string) => {
+    const text = description.toLowerCase();
+    const spec = { ...avatarSpec };
+
+    // Extract name from first part or generate one
+    const firstSentence = description.split('.')[0];
+    spec.name = firstSentence.length > 50 ? 
+      firstSentence.substring(0, 47) + '...' : 
+      firstSentence || 'Custom Avatar';
+
+    // Parse geography
+    const geoKeywords = ['nyc', 'new york', 'san francisco', 'sf', 'bay area', 'los angeles', 'la', 'chicago', 'boston', 'seattle', 'austin', 'denver', 'atlanta', 'miami', 'dallas', 'houston', 'phoenix', 'philadelphia', 'detroit', 'washington dc', 'dc', 'portland', 'nashville', 'charlotte', 'raleigh', 'tampa', 'orlando', 'las vegas', 'salt lake city', 'minneapolis', 'kansas city', 'columbus', 'indianapolis', 'milwaukee', 'memphis', 'louisville', 'richmond', 'norfolk', 'jacksonville', 'birmingham', 'new orleans', 'oklahoma city', 'tulsa', 'little rock', 'shreveport', 'baton rouge', 'mobile', 'huntsville', 'montgomery', 'tuscaloosa', 'dothan', 'florence', 'gadsden', 'anniston', 'opelika', 'auburn', 'enterprise', 'ozark', 'troy', 'andalusia', 'greenville', 'selma', 'demopolis', 'camden', 'monroeville', 'brewton', 'atmore', 'bay minette', 'daphne', 'fairhope', 'gulf shores', 'orange beach', 'foley', 'robertsdale', 'spanish fort', 'tillmans corner', 'prichard', 'chickasaw', 'saraland', 'satsuma', 'creola', 'bayou la batre', 'grand bay', 'irvington', 'theodore', 'semmes', 'wilmer', 'mount vernon', 'citronelle', 'jackson', 'grove hill', 'thomasville', 'coffeeville', 'millry', 'frisco city', 'repton', 'uriah', 'excel', 'monroeville', 'beatrice', 'peterman', 'tunnel springs', 'franklin', 'georgiana', 'greenville', 'fort deposit', 'luverne', 'brantley', 'dozier', 'rutledge', 'glenwood', 'goshen', 'troy', 'brundidge', 'banks', 'jack', 'coffee springs', 'new brockton', 'daleville', 'ozark', 'newton', 'midland city', 'pinckard', 'webb', 'clopton', 'ariton', 'skipperville', 'clio', 'louisville', 'clayton', 'eufaula', 'georgetown', 'morris', 'seale', 'pittsview', 'hurtsboro', 'union springs', 'midway', 'shorter', 'tuskegee', 'notasulga', 'dadeville', 'camp hill', 'daviston', 'jacksons gap', 'goldville', 'waverly', 'opelika', 'auburn', 'loachapoka', 'salem', 'smiths station', 'phenix city', 'ladonia', 'us', 'usa', 'united states', 'north america', 'canada', 'toronto', 'vancouver', 'montreal', 'calgary', 'ottawa', 'edmonton', 'quebec city', 'winnipeg', 'hamilton', 'kitchener', 'london', 'victoria', 'halifax', 'oshawa', 'windsor', 'saskatoon', 'st. catharines', 'regina', 'sherbrooke', 'kelowna', 'barrie', 'abbotsford', 'sudbury', 'kingston', 'saguenay', 'trois-rivières', 'guelph', 'cambridge', 'whitby', 'ajax', 'langley', 'saanich', 'terrebonne', 'milton', 'st. johns', 'moncton', 'thunder bay', 'dieppe', 'waterloo', 'delta', 'chatham-kent', 'red deer', 'kamloops', 'brantford', 'cape breton', 'lethbridge', 'saint-jean-sur-richelieu', 'clarington', 'pickering', 'nanaimo', 'sudbury', 'north vancouver', 'maple ridge', 'new westminster', 'saint john', 'coquitlam', 'richmond hill', 'hull', 'oakville', 'burlington', 'greater sudbury', 'lévis', 'barrie', 'moncton', 'saint-jérôme', 'granby'];
+    
+    geoKeywords.forEach(keyword => {
+      if (text.includes(keyword)) {
+        const formatted = keyword.split(' ').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+        if (!spec.geo.includes(formatted)) {
+          spec.geo.push(formatted);
+        }
+      }
+    });
+
+    // Parse industries
+    const industryKeywords = {
+      'technology': ['tech', 'software', 'saas', 'ai', 'fintech', 'edtech', 'proptech', 'martech'],
+      'healthcare': ['healthcare', 'medical', 'pharma', 'biotech', 'health'],
+      'financial services': ['finance', 'banking', 'investment', 'insurance', 'wealth'],
+      'professional services': ['consulting', 'legal', 'accounting', 'advisory'],
+      'manufacturing': ['manufacturing', 'industrial', 'automotive'],
+      'retail': ['retail', 'e-commerce', 'ecommerce', 'consumer'],
+      'real estate': ['real estate', 'property', 'construction'],
+      'education': ['education', 'university', 'school', 'training']
+    };
+
+    Object.entries(industryKeywords).forEach(([industry, keywords]) => {
+      if (keywords.some(keyword => text.includes(keyword))) {
+        spec.industries.push(industry.charAt(0).toUpperCase() + industry.slice(1));
+      }
+    });
+
+    // Parse employee range
+    const employeeMatch = text.match(/(\d+)[-–](\d+)\s*employees?/);
+    if (employeeMatch) {
+      spec.employee_range.min = parseInt(employeeMatch[1]);
+      spec.employee_range.max = parseInt(employeeMatch[2]);
+    } else {
+      // Look for size indicators
+      if (text.includes('startup') || text.includes('small')) {
+        spec.employee_range = { min: 1, max: 50 };
+      } else if (text.includes('medium') || text.includes('mid-size')) {
+        spec.employee_range = { min: 51, max: 200 };
+      } else if (text.includes('large') || text.includes('enterprise')) {
+        spec.employee_range = { min: 201, max: null };
+      }
+    }
+
+    // Parse revenue
+    const revenueMatch = text.match(/\$(\d+)([mk]?)\+?\s*revenue/);
+    if (revenueMatch) {
+      let amount = parseInt(revenueMatch[1]);
+      const unit = revenueMatch[2];
+      if (unit === 'm') amount *= 1000000;
+      if (unit === 'k') amount *= 1000;
+      spec.company_revenue_usd.min = amount;
+    }
+
+    // Parse roles
+    const roleKeywords = {
+      primary: ['founder', 'ceo', 'owner', 'president', 'managing director', 'managing partner'],
+      secondary: ['vp', 'vice president', 'head', 'director', 'c-suite', 'cto', 'cfo', 'cmo', 'coo']
+    };
+
+    roleKeywords.primary.forEach(role => {
+      if (text.includes(role)) {
+        const formatted = role.split(' ').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+        if (!spec.roles_primary.includes(formatted)) {
+          spec.roles_primary.push(formatted);
+        }
+      }
+    });
+
+    roleKeywords.secondary.forEach(role => {
+      if (text.includes(role)) {
+        const formatted = role.split(' ').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+        if (!spec.roles_secondary.includes(formatted)) {
+          spec.roles_secondary.push(formatted);
+        }
+      }
+    });
+
+    // Parse intent signals
+    if (text.includes('hiring') || text.includes('recruiting')) {
+      spec.intent_signals_any.push('Hiring since Aug 2025');
+    }
+    if (text.includes('growth') || text.includes('expanding')) {
+      spec.intent_signals_any.push('Expansion');
+    }
+    if (text.includes('funding') || text.includes('raised')) {
+      spec.intent_signals_any.push('Recent funding');
+    }
+
+    // Parse tech signals
+    const techKeywords = ['hubspot', 'salesforce', 'calendly', 'wordpress', 'shopify', 'stripe', 'slack', 'zoom', 'microsoft', 'google workspace'];
+    techKeywords.forEach(tech => {
+      if (text.includes(tech)) {
+        const formatted = tech.charAt(0).toUpperCase() + tech.slice(1);
+        if (!spec.tech_signals_any.includes(formatted)) {
+          spec.tech_signals_any.push(formatted);
+        }
+      }
+    });
+
+    return spec;
+  };
 
   useEffect(() => {
     if (listId) {
@@ -445,19 +596,39 @@ export function ListCleaningModal({ listId, listName, onClose, onSuccess }: List
   };
 
   const executeAvatarVerification = async () => {
-    if (!user || !avatarDescription.trim()) {
-      setResult({
-        success: false,
-        message: 'Please provide an avatar description'
-      });
-      return;
+    if (!user) return;
+
+    // Validate input - either structured form or description
+    let finalAvatarSpec;
+    if (useStructuredForm) {
+      // Validate structured form
+      if (!avatarSpec.name.trim()) {
+        setResult({ success: false, message: 'Avatar name is required' });
+        return;
+      }
+      if (avatarSpec.geo.length === 0 && avatarSpec.industries.length === 0) {
+        setResult({ success: false, message: 'Please specify either geography or industries' });
+        return;
+      }
+      if (avatarSpec.roles_primary.length === 0) {
+        setResult({ success: false, message: 'At least one primary role is required' });
+        return;
+      }
+      finalAvatarSpec = avatarSpec;
+    } else {
+      // Parse free-text description
+      if (!avatarDescription.trim()) {
+        setResult({ success: false, message: 'Please provide an avatar description' });
+        return;
+      }
+      finalAvatarSpec = parseAvatarDescription(avatarDescription);
     }
 
     setVerifyingAvatar(true);
     setResult(null);
 
     try {
-      // Get all leads from the list for verification
+      // Get all leads from the list
       const { data: allLeads, error: leadsError } = await supabase
         .from('list_leads')
         .select('*')
@@ -470,24 +641,16 @@ export function ListCleaningModal({ listId, listName, onClose, onSuccess }: List
         throw new Error('No leads found in this list');
       }
 
-      // Generate batch ID
+      // Generate batch ID and avatar ID
       const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const avatarId = `avatar_${Date.now()}`;
-
-      // Create avatar spec
-      const avatarSpec = {
-        description: avatarDescription.trim(),
-        created_at: new Date().toISOString(),
-        list_id: listId,
-        list_name: listName
-      };
+      const avatarId = finalAvatarSpec.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || `avatar_${Date.now()}`;
 
       // Create cleaning session record
       const { data: sessionData, error: sessionError } = await supabase
         .from('cleaning_sessions')
         .insert({
           owner_id: user.id,
-          avatar_spec: avatarSpec,
+          avatar_spec: finalAvatarSpec,
           avatar_id: avatarId,
           batch_id: batchId,
           batch_size: 500,
@@ -498,23 +661,37 @@ export function ListCleaningModal({ listId, listName, onClose, onSuccess }: List
         .single();
 
       if (sessionError) throw sessionError;
+      setSessionData(sessionData);
 
-      // Clean and normalize leads before sending
+      // Clean and normalize leads according to requirements
       const cleanedLeads = allLeads.map(lead => ({
         id: lead.id,
-        emails: lead.email ? [lead.email.toLowerCase().trim()] : [],
-        phones: lead.phone ? [lead.phone.replace(/\s/g, '')] : [],
+        emails: lead.email ? [lead.email.toLowerCase().trim()].filter(email => 
+          /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+        ) : [],
+        phones: lead.phone ? [lead.phone.replace(/[^\d+]/g, '')].filter(phone => 
+          phone.length >= 10
+        ) : [],
         full_name: lead.name || '',
         first_name: lead.name ? lead.name.split(' ')[0] : '',
         last_name: lead.name ? lead.name.split(' ').slice(1).join(' ') : '',
         title: lead.job_title || '',
         company: lead.company_name || '',
-        company_domain: lead.source_url ? new URL(lead.source_url).hostname : '',
+        company_domain: lead.source_url ? (() => {
+          try {
+            return new URL(lead.source_url).hostname.toLowerCase();
+          } catch {
+            return '';
+          }
+        })() : '',
         linkedin_url: lead.source_url || '',
         source_slug: lead.source_platform || 'manual',
         country: lead.custom_fields?.country || '',
         state: lead.custom_fields?.state || '',
-        city: lead.custom_fields?.city || ''
+        city: lead.custom_fields?.city || '',
+        site_signals: [],
+        social_signals: [],
+        tech_stack: []
       })).filter(lead => lead.id); // Only include leads with valid IDs
 
       // Update session to running
@@ -526,9 +703,9 @@ export function ListCleaningModal({ listId, listName, onClose, onSuccess }: List
         })
         .eq('id', sessionData.id);
 
-      // Send to n8n webhook
+      // Send to n8n webhook with structured payload
       const webhookPayload = {
-        avatar: avatarSpec,
+        avatar: finalAvatarSpec,
         avatar_id: avatarId,
         batch_id: batchId,
         batch_size: 500,
@@ -544,7 +721,8 @@ export function ListCleaningModal({ listId, listName, onClose, onSuccess }: List
       });
 
       if (!response.ok) {
-        throw new Error(`Webhook failed: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Webhook failed: ${response.status} - ${errorText}`);
       }
 
       const webhookResult = await response.json();
@@ -561,20 +739,23 @@ export function ListCleaningModal({ listId, listName, onClose, onSuccess }: List
 
       setAvatarVerificationResult({
         success: true,
-        message: `Avatar verification completed! Processed ${cleanedLeads.length} leads.`,
+        message: `Avatar verification completed! ${webhookResult.summary?.accept_count || 0} ACCEPT, ${webhookResult.summary?.review_count || 0} REVIEW, ${webhookResult.summary?.reject_count || 0} REJECT.`,
         summary: webhookResult
       });
 
-      setResult({
-        success: true,
-        message: `Avatar verification completed! ${webhookResult.summary?.accept_count || 0} ACCEPT, ${webhookResult.summary?.review_count || 0} REVIEW, ${webhookResult.summary?.reject_count || 0} REJECT. Average score: ${webhookResult.summary?.average_score?.toFixed(2) || 'N/A'}`
-      });
+      // Return JSON as required
+      console.log(JSON.stringify({
+        ok: true,
+        batch_id: batchId,
+        session_id: sessionData.id,
+        summary: webhookResult.summary
+      }));
 
     } catch (error) {
       console.error('Error during avatar verification:', error);
       
       // Update session to failed if it was created
-      if (sessionData) {
+      if (sessionData?.id) {
         await supabase
           .from('cleaning_sessions')
           .update({
@@ -585,10 +766,17 @@ export function ListCleaningModal({ listId, listName, onClose, onSuccess }: List
           .eq('id', sessionData.id);
       }
 
-      setResult({
+      setAvatarVerificationResult({
         success: false,
-        message: `Avatar verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: `Avatar verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        summary: { error: error instanceof Error ? error.message : 'Unknown error' }
       });
+
+      // Return JSON error as required
+      console.log(JSON.stringify({
+        ok: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }));
     } finally {
       setVerifyingAvatar(false);
     }
@@ -896,34 +1084,296 @@ export function ListCleaningModal({ listId, listName, onClose, onSuccess }: List
                     Verify which leads match your ideal client avatar using AI scoring
                   </p>
                   
-                  <div className="space-y-4">
-                    <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
-                        Describe Your Ideal Client Avatar
-                      </label>
-                      <textarea
-                        value={avatarDescription}
-                        onChange={(e) => setAvatarDescription(e.target.value)}
-                        rows={4}
-                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                          theme === 'gold'
-                            ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
-                            : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                  {/* Form Type Toggle */}
+                  <div className="mb-6">
+                    <div className="flex items-center space-x-4 mb-4">
+                      <button
+                        onClick={() => setUseStructuredForm(false)}
+                        className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                          !useStructuredForm
+                            ? theme === 'gold'
+                              ? 'gold-gradient text-black'
+                              : 'bg-blue-600 text-white'
+                            : theme === 'gold'
+                              ? 'border border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10'
+                              : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
                         }`}
-                        placeholder="Example: US wealth managers, 20-200 employees, must use HubSpot, hiring SDRs, located in major cities, revenue $10M+..."
-                      />
-                      <p className={`text-xs mt-1 ${
-                        theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
-                      }`}>
-                        Be specific about industry, company size, tech stack, hiring signals, location, etc.
-                      </p>
+                      >
+                        Simple Description
+                      </button>
+                      <button
+                        onClick={() => setUseStructuredForm(true)}
+                        className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+                          useStructuredForm
+                            ? theme === 'gold'
+                              ? 'gold-gradient text-black'
+                              : 'bg-blue-600 text-white'
+                            : theme === 'gold'
+                              ? 'border border-yellow-400/30 text-yellow-400 hover:bg-yellow-400/10'
+                              : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        Advanced Form
+                      </button>
                     </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {!useStructuredForm ? (
+                      /* Simple Description Form */
+                      <div>
+                        <label className={`block text-sm font-medium mb-2 ${
+                          theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
+                          Describe Your Ideal Client Avatar
+                        </label>
+                        <textarea
+                          value={avatarDescription}
+                          onChange={(e) => setAvatarDescription(e.target.value)}
+                          rows={4}
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                            theme === 'gold'
+                              ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                              : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                          }`}
+                          placeholder="Example: US wealth managers, 20-200 employees, must use HubSpot, hiring SDRs, located in major cities, revenue $10M+..."
+                        />
+                        <p className={`text-xs mt-1 ${
+                          theme === 'gold' ? 'text-gray-500' : 'text-gray-500'
+                        }`}>
+                          Be specific about industry, company size, tech stack, hiring signals, location, etc.
+                        </p>
+                      </div>
+                    ) : (
+                      /* Structured Form */
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className={`block text-sm font-medium mb-2 ${
+                              theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
+                              Avatar Name *
+                            </label>
+                            <input
+                              type="text"
+                              value={avatarSpec.name}
+                              onChange={(e) => setAvatarSpec(prev => ({ ...prev, name: e.target.value }))}
+                              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                                theme === 'gold'
+                                  ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                                  : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                              }`}
+                              placeholder="e.g., NYC Growth 50-500"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className={`block text-sm font-medium mb-2 ${
+                              theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
+                              Geography
+                            </label>
+                            <input
+                              type="text"
+                              value={avatarSpec.geo.join(', ')}
+                              onChange={(e) => setAvatarSpec(prev => ({ 
+                                ...prev, 
+                                geo: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                              }))}
+                              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                                theme === 'gold'
+                                  ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                                  : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                              }`}
+                              placeholder="e.g., New York City, San Francisco, United States"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className={`block text-sm font-medium mb-2 ${
+                              theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
+                              Industries
+                            </label>
+                            <input
+                              type="text"
+                              value={avatarSpec.industries.join(', ')}
+                              onChange={(e) => setAvatarSpec(prev => ({ 
+                                ...prev, 
+                                industries: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                              }))}
+                              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                                theme === 'gold'
+                                  ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                                  : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                              }`}
+                              placeholder="e.g., Technology, Healthcare, Financial Services"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className={`block text-sm font-medium mb-2 ${
+                              theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
+                              Employee Range
+                            </label>
+                            <div className="flex space-x-2">
+                              <input
+                                type="number"
+                                value={avatarSpec.employee_range.min || ''}
+                                onChange={(e) => setAvatarSpec(prev => ({ 
+                                  ...prev, 
+                                  employee_range: { ...prev.employee_range, min: parseInt(e.target.value) || null }
+                                }))}
+                                className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                                  theme === 'gold'
+                                    ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                                    : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                                }`}
+                                placeholder="Min"
+                              />
+                              <span className={`px-2 py-2 ${theme === 'gold' ? 'text-gray-400' : 'text-gray-600'}`}>-</span>
+                              <input
+                                type="number"
+                                value={avatarSpec.employee_range.max || ''}
+                                onChange={(e) => setAvatarSpec(prev => ({ 
+                                  ...prev, 
+                                  employee_range: { ...prev.employee_range, max: parseInt(e.target.value) || null }
+                                }))}
+                                className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                                  theme === 'gold'
+                                    ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                                    : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                                }`}
+                                placeholder="Max"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                          }`}>
+                            Primary Roles *
+                          </label>
+                          <input
+                            type="text"
+                            value={avatarSpec.roles_primary.join(', ')}
+                            onChange={(e) => setAvatarSpec(prev => ({ 
+                              ...prev, 
+                              roles_primary: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                            }))}
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                              theme === 'gold'
+                                ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                                : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                            }`}
+                            placeholder="e.g., Founder, CEO, Owner, President"
+                          />
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                          }`}>
+                            Intent Signals
+                          </label>
+                          <input
+                            type="text"
+                            value={avatarSpec.intent_signals_any.join(', ')}
+                            onChange={(e) => setAvatarSpec(prev => ({ 
+                              ...prev, 
+                              intent_signals_any: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                            }))}
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                              theme === 'gold'
+                                ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                                : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                            }`}
+                            placeholder="e.g., Hiring since Aug 2025, Posted jobs recently, Expansion"
+                          />
+                        </div>
+
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                          }`}>
+                            Tech Stack Signals
+                          </label>
+                          <input
+                            type="text"
+                            value={avatarSpec.tech_signals_any.join(', ')}
+                            onChange={(e) => setAvatarSpec(prev => ({ 
+                              ...prev, 
+                              tech_signals_any: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                            }))}
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                              theme === 'gold'
+                                ? 'border-yellow-400/30 bg-black/50 text-gray-200 placeholder-gray-500 focus:ring-yellow-400'
+                                : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                            }`}
+                            placeholder="e.g., HubSpot, Salesforce, Calendly, WordPress"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className={`block text-sm font-medium mb-2 ${
+                              theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
+                              Accept Threshold
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="1"
+                              step="0.01"
+                              value={avatarSpec.thresholds.accept_min}
+                              onChange={(e) => setAvatarSpec(prev => ({ 
+                                ...prev, 
+                                thresholds: { ...prev.thresholds, accept_min: parseFloat(e.target.value) || 0.70 }
+                              }))}
+                              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                                theme === 'gold'
+                                  ? 'border-yellow-400/30 bg-black/50 text-gray-200 focus:ring-yellow-400'
+                                  : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                              }`}
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className={`block text-sm font-medium mb-2 ${
+                              theme === 'gold' ? 'text-gray-300' : 'text-gray-700'
+                            }`}>
+                              Review Threshold
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="1"
+                              step="0.01"
+                              value={avatarSpec.thresholds.review_min}
+                              onChange={(e) => setAvatarSpec(prev => ({ 
+                                ...prev, 
+                                thresholds: { ...prev.thresholds, review_min: parseFloat(e.target.value) || 0.50 }
+                              }))}
+                              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                                theme === 'gold'
+                                  ? 'border-yellow-400/30 bg-black/50 text-gray-200 focus:ring-yellow-400'
+                                  : 'border-gray-300 bg-white text-gray-900 focus:ring-blue-500'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     
                     <button
                       onClick={executeAvatarVerification}
-                      disabled={verifyingAvatar || !avatarDescription.trim()}
+                      disabled={verifyingAvatar || (!useStructuredForm && !avatarDescription.trim()) || (useStructuredForm && !avatarSpec.name.trim())}
                       className={`w-full px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                         theme === 'gold'
                           ? 'bg-purple-600 text-white hover:bg-purple-700'
