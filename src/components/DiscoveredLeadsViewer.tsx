@@ -777,8 +777,9 @@ export function DiscoveredLeadsViewer({ intentRunId, onAddToList }: DiscoveredLe
                 )}
               </>
             )}
-          </>
-        )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
