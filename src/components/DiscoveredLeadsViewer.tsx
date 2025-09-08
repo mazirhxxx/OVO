@@ -78,6 +78,7 @@ export function DiscoveredLeadsViewer({ intentRunId, onAddToList }: DiscoveredLe
   const [sortBy, setSortBy] = useState<'intent_score' | 'created_at' | 'company'>('intent_score');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filterBy, setFilterBy] = useState<'all' | 'high_intent' | 'has_email' | 'has_phone'>('all');
+  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     if (user) {
