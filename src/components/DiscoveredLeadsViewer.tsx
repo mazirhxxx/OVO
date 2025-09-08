@@ -274,7 +274,7 @@ export function DiscoveredLeadsViewer({ intentRunId, onAddToList }: DiscoveredLe
         const batch = listLeads.slice(i, i + batchSize);
         const { error: insertError } = await supabase
           .from('list_leads')
-          .insert(batch);
+          .upsert(batch, { onConflict: 'list_id,email', ignoreDuplicates: true });
 
         if (insertError) {
           console.error('Error inserting batch:', insertError);
