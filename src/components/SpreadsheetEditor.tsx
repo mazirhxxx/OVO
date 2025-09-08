@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
+import { LoadingSpinner } from './common/LoadingSpinner';
 import { X, Save, Plus, Trash2, Download, Upload, Grid, Edit3, CheckCircle, AlertCircle, RefreshCw, Crown, Zap, Copy, Cast as Paste } from 'lucide-react';
 
 interface SpreadsheetEditorProps {
