@@ -160,7 +160,7 @@ export function Layout() {
     }`}>
       {/* Sidebar */}
       <div 
-        className={`fixed left-0 top-0 h-full z-30 transition-all duration-300 ease-in-out ${
+        className={`fixed left-0 top-0 h-full z-30 transition-all duration-300 ease-in-out flex flex-col ${
           sidebarExpanded ? 'w-64' : 'w-16'
         } ${
         theme === 'gold' 
@@ -530,7 +530,7 @@ export function Layout() {
         <div className={`absolute bottom-0 w-full p-4 border-t overflow-hidden ${
           theme === 'gold' ? 'border-yellow-400/20' : 'border-gray-200'
         }`}>
-          <div className="flex items-center">
+          <div className={`flex items-center ${sidebarExpanded ? 'justify-between' : 'justify-center'}`}>
             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
               theme === 'gold' ? 'bg-yellow-400/20' : 'bg-gray-100'
             }`}>
@@ -538,33 +538,33 @@ export function Layout() {
                 theme === 'gold' ? 'text-yellow-400' : 'text-gray-600'
               }`} />
             </div>
-            <div className={`ml-3 flex-1 transition-opacity duration-200 ${
-              sidebarExpanded ? 'opacity-100' : 'opacity-0'
-            }`}>
-              <p className={`text-sm font-medium ${
-                theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
-              }`}>
-                {user.user_metadata?.full_name || 'User'}
-              </p>
-              <p className={`text-xs ${
-                theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
-              }`}>
-                Member
-              </p>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                sidebarExpanded ? 'opacity-100' : 'opacity-0'
-              } ${
-                theme === 'gold'
-                  ? 'text-gray-400 hover:text-red-400 hover:bg-red-400/10'
-                  : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
-              }`}
-              title="Sign out"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+            {sidebarExpanded && (
+              <>
+                <div className="ml-3 flex-1 min-w-0">
+                  <p className={`text-sm font-medium truncate ${
+                    theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
+                  }`}>
+                    {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+                  </p>
+                  <p className={`text-xs ${
+                    theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                    Member
+                  </p>
+                </div>
+                <button
+                  onClick={handleSignOut}
+                  className={`p-2 rounded-lg transition-colors ${
+                    theme === 'gold'
+                      ? 'text-gray-400 hover:text-red-400 hover:bg-red-400/10'
+                      : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                  }`}
+                  title="Sign out"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
