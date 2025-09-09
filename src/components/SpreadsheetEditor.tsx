@@ -37,6 +37,11 @@ export function SpreadsheetEditor({ listId, listName, onClose, onSave }: Spreads
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
   const [editingCell, setEditingCell] = useState<{ rowIndex: number; field: string } | null>(null);
   const [copiedData, setCopiedData] = useState<string>('');
+  const [showTools, setShowTools] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterColumn, setFilterColumn] = useState('');
+  const [filterValue, setFilterValue] = useState('');
+  const [enrichmentTarget, setEnrichmentTarget] = useState<'email' | 'phone' | 'company' | 'title'>('email');
   const tableRef = useRef<HTMLDivElement>(null);
 
   const columns = [
@@ -46,7 +51,14 @@ export function SpreadsheetEditor({ listId, listName, onClose, onSave }: Spreads
     { key: 'company_name', label: 'Company', width: '200px' },
     { key: 'job_title', label: 'Job Title', width: '180px' },
     { key: 'source_url', label: 'Source URL', width: '200px' },
-    { key: 'source_platform', label: 'Source', width: '120px' }
+    { key: 'source_platform', label: 'Source', width: '120px' },
+    { key: 'score', label: 'AI Score', width: '100px' },
+    { key: 'label', label: 'Decision', width: '100px' },
+    { key: 'normalized_title', label: 'Clean Title', width: '180px' },
+    { key: 'normalized_industry', label: 'Clean Industry', width: '150px' },
+    { key: 'reasons', label: 'AI Reasons', width: '250px' },
+    { key: 'ai_notes', label: 'AI Notes', width: '250px' },
+    { key: 'batch_id', label: 'Batch ID', width: '150px' }
   ];
 
   useEffect(() => {
@@ -79,6 +91,13 @@ export function SpreadsheetEditor({ listId, listName, onClose, onSave }: Spreads
         job_title: lead.job_title || '',
         source_url: lead.source_url || '',
         source_platform: lead.source_platform || '',
+        score: lead.score?.toString() || '',
+        label: lead.label || '',
+        normalized_title: lead.normalized_title || '',
+        normalized_industry: lead.normalized_industry || '',
+        reasons: lead.reasons || '',
+        ai_notes: lead.ai_notes || '',
+        batch_id: lead.batch_id || '',
         isNew: false,
         isModified: false,
         isDeleted: false
@@ -104,6 +123,13 @@ export function SpreadsheetEditor({ listId, listName, onClose, onSave }: Spreads
       job_title: '',
       source_url: '',
       source_platform: 'manual',
+      score: '',
+      label: '',
+      normalized_title: '',
+      normalized_industry: '',
+      reasons: '',
+      ai_notes: '',
+      batch_id: '',
       isNew: true,
       isModified: false,
       isDeleted: false
@@ -223,6 +249,13 @@ export function SpreadsheetEditor({ listId, listName, onClose, onSave }: Spreads
           job_title: lead.job_title || null,
           source_url: lead.source_url || null,
           source_platform: lead.source_platform || 'manual',
+          score: lead.score ? parseFloat(lead.score) : null,
+          label: lead.label || null,
+          normalized_title: lead.normalized_title || null,
+          normalized_industry: lead.normalized_industry || null,
+          reasons: lead.reasons || null,
+          ai_notes: lead.ai_notes || null,
+          batch_id: lead.batch_id || null,
           custom_fields: {}
         }));
 
@@ -246,6 +279,13 @@ export function SpreadsheetEditor({ listId, listName, onClose, onSave }: Spreads
             job_title: lead.job_title || null,
             source_url: lead.source_url || null,
             source_platform: lead.source_platform || 'manual',
+            score: lead.score ? parseFloat(lead.score) : null,
+            label: lead.label || null,
+            normalized_title: lead.normalized_title || null,
+            normalized_industry: lead.normalized_industry || null,
+            reasons: lead.reasons || null,
+            ai_notes: lead.ai_notes || null,
+            batch_id: lead.batch_id || null,
             updated_at: new Date().toISOString()
           })
           .eq('id', lead.id)
