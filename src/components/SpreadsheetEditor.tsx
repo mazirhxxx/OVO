@@ -21,6 +21,13 @@ interface EditableLead {
   job_title: string;
   source_url: string;
   source_platform: string;
+  score: string;
+  label: string;
+  normalized_title: string;
+  normalized_industry: string;
+  reasons: string;
+  ai_notes: string;
+  batch_id: string;
   isNew?: boolean;
   isModified?: boolean;
   isDeleted?: boolean;
