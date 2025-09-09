@@ -192,30 +192,30 @@ export function Layout() {
               const isActive = location.pathname === item.href || 
                 (item.href !== '/dashboard' && location.pathname.startsWith(item.href));
               
+              const linkClasses = isActive
+                ? theme === 'gold'
+                  ? 'gold-gradient text-black'
+                  : 'bg-blue-50 text-blue-700'
+                : theme === 'gold'
+                  ? 'text-gray-300 hover:text-yellow-400 hover:bg-yellow-400/10'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50';
+              
+              const iconClasses = isActive
+                ? theme === 'gold'
+                  ? 'text-black'
+                  : 'text-blue-700'
+                : theme === 'gold'
+                  ? 'text-gray-400 group-hover:text-yellow-400'
+                  : 'text-gray-400 group-hover:text-gray-500';
+              
               return (
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 relative ${
-                    isActive
-                      ? theme === 'gold'
-                        ? 'gold-gradient text-black'
-                        : 'bg-blue-50 text-blue-700'
-                      : theme === 'gold'
-                        ? 'text-gray-300 hover:text-yellow-400 hover:bg-yellow-400/10'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
+                  className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 relative ${linkClasses}`}
                   title={!sidebarExpanded ? item.name : undefined}
                 >
-                  <Icon className={`mr-3 h-5 w-5 ${
-                    isActive
-                      ? theme === 'gold'
-                        ? 'text-black'
-                        : 'text-blue-700'
-                      : theme === 'gold'
-                        ? 'text-gray-400 group-hover:text-yellow-400'
-                        : 'text-gray-400 group-hover:text-gray-500'
-                  }`} />
+                  <Icon className={`mr-3 h-5 w-5 ${iconClasses}`} />
                   <span className={`ml-3 whitespace-nowrap transition-opacity duration-200 ${
                     sidebarExpanded ? 'opacity-100' : 'opacity-0'
                   }`}>
@@ -240,9 +240,7 @@ export function Layout() {
                   }`}
                 >
                   <div className="flex items-center">
-                    <Target className={`h-4 w-4 mr-3 ${
-                      theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
-                    }`} />
+                    <Target className={theme === 'gold' ? 'h-4 w-4 mr-3 text-gray-400' : 'h-4 w-4 mr-3 text-gray-500'} />
                     <span>Campaigns</span>
                   </div>
                   {expandedSections.campaigns ? (
@@ -258,19 +256,19 @@ export function Layout() {
                       const Icon = item.icon;
                       const isActive = location.pathname === item.href;
                       
+                      const itemClasses = isActive
+                        ? theme === 'gold'
+                          ? 'bg-yellow-400/20 text-yellow-400'
+                          : 'bg-blue-50 text-blue-700'
+                        : theme === 'gold'
+                          ? 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/5'
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50';
+                      
                       return (
                         <Link
                           key={item.name}
                           to={item.href}
-                          className={`group flex items-center px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                            isActive
-                              ? theme === 'gold'
-                                ? 'bg-yellow-400/20 text-yellow-400'
-                                : 'bg-blue-50 text-blue-700'
-                              : theme === 'gold'
-                                ? 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/5'
-                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                          }`}
+                          className={`group flex items-center px-3 py-1.5 text-sm rounded-lg transition-colors ${itemClasses}`}
                         >
                           <Icon className="h-4 w-4 mr-2" />
                           {item.name}
@@ -332,9 +330,7 @@ export function Layout() {
                   }`}
                 >
                   <div className="flex items-center">
-                    <Users className={`h-4 w-4 mr-3 ${
-                      theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
-                    }`} />
+                    <Users className={theme === 'gold' ? 'h-4 w-4 mr-3 text-gray-400' : 'h-4 w-4 mr-3 text-gray-500'} />
                     <span>Lists</span>
                   </div>
                   {expandedSections.lists ? (
@@ -350,19 +346,19 @@ export function Layout() {
                       const Icon = item.icon;
                       const isActive = location.pathname === item.href;
                       
+                      const itemClasses = isActive
+                        ? theme === 'gold'
+                          ? 'bg-yellow-400/20 text-yellow-400'
+                          : 'bg-blue-50 text-blue-700'
+                        : theme === 'gold'
+                          ? 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/5'
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50';
+                      
                       return (
                         <Link
                           key={item.name}
                           to={item.href}
-                          className={`group flex items-center px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                            isActive
-                              ? theme === 'gold'
-                                ? 'bg-yellow-400/20 text-yellow-400'
-                                : 'bg-blue-50 text-blue-700'
-                              : theme === 'gold'
-                                ? 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/5'
-                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                          }`}
+                          className={`group flex items-center px-3 py-1.5 text-sm rounded-lg transition-colors ${itemClasses}`}
                         >
                           <Icon className="h-4 w-4 mr-2" />
                           {item.name}
@@ -392,9 +388,7 @@ export function Layout() {
                                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                             }`}
                           >
-                            <div className={`w-2 h-2 rounded-full mr-3 ${
-                              theme === 'gold' ? 'bg-blue-400' : 'bg-blue-500'
-                            }`} />
+                            <div className={theme === 'gold' ? 'w-2 h-2 rounded-full mr-3 bg-blue-400' : 'w-2 h-2 rounded-full mr-3 bg-blue-500'} />
                             <span className="truncate">
                               {list.name.length > 25 ? `${list.name.substring(0, 25)}...` : list.name}
                             </span>
@@ -417,9 +411,7 @@ export function Layout() {
                   }`}
                 >
                   <div className="flex items-center">
-                    <Sparkles className={`h-4 w-4 mr-3 ${
-                      theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
-                    }`} />
+                    <Sparkles className={theme === 'gold' ? 'h-4 w-4 mr-3 text-gray-400' : 'h-4 w-4 mr-3 text-gray-500'} />
                     <span>Tools</span>
                   </div>
                   {expandedSections.tools ? (
@@ -436,19 +428,19 @@ export function Layout() {
                       const isActive = location.pathname === item.href || 
                         (item.href.includes('?') && location.pathname + location.search === item.href);
                       
+                      const itemClasses = isActive
+                        ? theme === 'gold'
+                          ? 'bg-yellow-400/20 text-yellow-400'
+                          : 'bg-blue-50 text-blue-700'
+                        : theme === 'gold'
+                          ? 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/5'
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50';
+                      
                       return (
                         <Link
                           key={item.name}
                           to={item.href}
-                          className={`group flex items-center px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                            isActive
-                              ? theme === 'gold'
-                                ? 'bg-yellow-400/20 text-yellow-400'
-                                : 'bg-blue-50 text-blue-700'
-                              : theme === 'gold'
-                                ? 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/5'
-                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                          }`}
+                          className={`group flex items-center px-3 py-1.5 text-sm rounded-lg transition-colors ${itemClasses}`}
                         >
                           <Icon className="h-4 w-4 mr-2" />
                           {item.name}
@@ -474,15 +466,15 @@ export function Layout() {
                   }`}
                 >
                   <div className="flex items-center">
-                    <Settings className={`h-4 w-4 mr-3 ${
+                    <Settings className={
                       location.pathname === '/settings'
                         ? theme === 'gold'
-                          ? 'text-black'
-                          : 'text-blue-700'
+                          ? 'h-4 w-4 mr-3 text-black'
+                          : 'h-4 w-4 mr-3 text-blue-700'
                         : theme === 'gold'
-                          ? 'text-gray-400'
-                          : 'text-gray-500'
-                    }`} />
+                          ? 'h-4 w-4 mr-3 text-gray-400'
+                          : 'h-4 w-4 mr-3 text-gray-500'
+                    } />
                     <span>Settings</span>
                   </div>
                   {expandedSections.settings ? (
@@ -500,19 +492,19 @@ export function Layout() {
                         (location.search.includes(item.href.split('?tab=')[1]) || 
                          (!location.search && item.href.includes('channels')));
                       
+                      const itemClasses = isActive
+                        ? theme === 'gold'
+                          ? 'bg-yellow-400/20 text-yellow-400'
+                          : 'bg-blue-50 text-blue-700'
+                        : theme === 'gold'
+                          ? 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/5'
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50';
+                      
                       return (
                         <Link
                           key={item.name}
                           to={item.href}
-                          className={`group flex items-center px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                            isActive
-                              ? theme === 'gold'
-                                ? 'bg-yellow-400/20 text-yellow-400'
-                                : 'bg-blue-50 text-blue-700'
-                              : theme === 'gold'
-                                ? 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/5'
-                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                          }`}
+                          className={`group flex items-center px-3 py-1.5 text-sm rounded-lg transition-colors ${itemClasses}`}
                         >
                           <Icon className="h-4 w-4 mr-2" />
                           {item.name}
@@ -531,34 +523,22 @@ export function Layout() {
           theme === 'gold' ? 'border-yellow-400/20' : 'border-gray-200'
         }`}>
           <div className={`flex items-center ${sidebarExpanded ? 'justify-between' : 'justify-center'}`}>
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-              theme === 'gold' ? 'bg-yellow-400/20' : 'bg-gray-100'
-            }`}>
-              <User className={`h-5 w-5 ${
-                theme === 'gold' ? 'text-yellow-400' : 'text-gray-600'
-              }`} />
+            <div className={theme === 'gold' ? 'w-10 h-10 rounded-full flex items-center justify-center bg-yellow-400/20' : 'w-10 h-10 rounded-full flex items-center justify-center bg-gray-100'}>
+              <User className={theme === 'gold' ? 'h-5 w-5 text-yellow-400' : 'h-5 w-5 text-gray-600'} />
             </div>
             {sidebarExpanded && (
               <>
                 <div className="ml-3 flex-1 min-w-0">
-                  <p className={`text-sm font-medium truncate ${
-                    theme === 'gold' ? 'text-gray-200' : 'text-gray-900'
-                  }`}>
+                  <p className={theme === 'gold' ? 'text-sm font-medium truncate text-gray-200' : 'text-sm font-medium truncate text-gray-900'}>
                     {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
                   </p>
-                  <p className={`text-xs ${
-                    theme === 'gold' ? 'text-gray-400' : 'text-gray-500'
-                  }`}>
+                  <p className={theme === 'gold' ? 'text-xs text-gray-400' : 'text-xs text-gray-500'}>
                     Member
                   </p>
                 </div>
                 <button
                   onClick={handleSignOut}
-                  className={`p-2 rounded-lg transition-colors ${
-                    theme === 'gold'
-                      ? 'text-gray-400 hover:text-red-400 hover:bg-red-400/10'
-                      : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
-                  }`}
+                  className={theme === 'gold' ? 'p-2 rounded-lg transition-colors text-gray-400 hover:text-red-400 hover:bg-red-400/10' : 'p-2 rounded-lg transition-colors text-gray-400 hover:text-red-600 hover:bg-red-50'}
                   title="Sign out"
                 >
                   <LogOut className="h-4 w-4" />
