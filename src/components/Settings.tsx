@@ -39,10 +39,19 @@ interface Channel {
 export function Settings() {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'security' | 'appearance' | 'channels'>('channels');
+  const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'security' | 'appearance' | 'channels' | 'vault'>('channels');
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [showChannelForm, setShowChannelForm] = useState(false);
+
+  // Check URL params for tab selection
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tab = urlParams.get('tab');
+    if (tab && ['profile', 'notifications', 'security', 'appearance', 'channels', 'vault'].includes(tab)) {
+      setActiveTab(tab as any);
+    }
+  }, []);
 
   const tabs = [
     { key: 'profile', label: 'Profile', icon: User },
