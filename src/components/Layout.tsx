@@ -184,7 +184,7 @@ export function Layout() {
         </div>
 
         {/* Navigation */}
-        <nav className="mt-6 px-3 overflow-hidden">
+        <nav className="flex-1 mt-6 px-3 overflow-y-auto pb-20">
           {/* Main Navigation */}
           <div className="space-y-1 mb-6">
             {mainNavigation.map((item) => {
@@ -228,7 +228,7 @@ export function Layout() {
 
           {/* Expandable Sections */}
           {sidebarExpanded && (
-            <div className="space-y-4">
+            <div className="space-y-4 pb-4">
               {/* Campaigns Section */}
               <div>
                 <button
@@ -527,7 +527,7 @@ export function Layout() {
         </nav>
 
         {/* User Profile */}
-        <div className={`absolute bottom-0 w-full p-4 border-t overflow-hidden ${
+        <div className={`absolute bottom-0 left-0 right-0 p-4 border-t bg-inherit ${
           theme === 'gold' ? 'border-yellow-400/20' : 'border-gray-200'
         }`}>
           <div className={`flex items-center ${sidebarExpanded ? 'justify-between' : 'justify-center'}`}>
